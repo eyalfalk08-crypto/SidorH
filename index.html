@@ -520,27 +520,52 @@
         }
 
         // Load all data from Firebase
-        async function loadAllData() {
+        function loadAllData() {
             try {
                 console.log('Loading data from Firebase...');
                 showStatus('⏳ טוען נתונים...');
                 
-                const workersSnapshot = await db.ref('shift-manager/workers').once('value');
-                state.workers = workersSnapshot.val() || [];
-                console.log('Loaded workers:', state.workers);
+                let loaded = 0;
+                const totalToLoad = 4;
                 
-                const blocksSnapshot = await db.ref('shift-manager/blocks').once('value');
-                state.blocks = blocksSnapshot.val() || {};
+                // Load workers
+                db.ref('shift-manager/workers').once('value', function(snapshot) {
+                    state.workers = snapshot.val() || [];
+                    console.log('Loaded workers:', state.workers);
+                    loaded++;
+                    if (loaded === totalToLoad) finishLoading();
+                });
                 
-                const constraintsSnapshot = await db.ref('shift-manager/constraints').once('value');
-                state.constraints = constraintsSnapshot.val() || {};
-
-                const requirementsSnapshot = await db.ref('shift-manager/requirements').once('value');
-                state.requirements = requirementsSnapshot.val() || {};
-
-                console.log('All data loaded');
-                showStatus('✅ הנתונים נטענו בהצלחה');
-                renderAllTabs();
+                // Load blocks
+                db.ref('shift-manager/blocks').once('value', function(snapshot) {
+                    state.blocks = snapshot.val() || {};
+                    console.log('Loaded blocks:', state.blocks);
+                    loaded++;
+                    if (loaded === totalToLoad) finishLoading();
+                });
+                
+                // Load constraints
+                db.ref('shift-manager/constraints').once('value', function(snapshot) {
+                    state.constraints = snapshot.val() || {};
+                    console.log('Loaded constraints:', state.constraints);
+                    loaded++;
+                    if (loaded === totalToLoad) finishLoading();
+                });
+                
+                // Load requirements
+                db.ref('shift-manager/requirements').once('value', function(snapshot) {
+                    state.requirements = snapshot.val() || {};
+                    console.log('Loaded requirements:', state.requirements);
+                    loaded++;
+                    if (loaded === totalToLoad) finishLoading();
+                });
+                
+                function finishLoading() {
+                    console.log('All data loaded');
+                    showStatus('✅ הנתונים נטענו בהצלחה');
+                    renderAllTabs();
+                }
+                
             } catch (error) {
                 console.error('Error loading data:', error);
                 showStatus('❌ שגיאה בטעינת הנתונים: ' + error.message, true);
@@ -548,11 +573,16 @@
         }
 
         // Add Worker
-        async function addWorker() {
+        function addWorker() {
             const input = document.getElementById('newWorkerName');
-            if (!input.value.trim()) return;
+            if (!input.value.trim()) {
+                alert('אנא הוסף שם עובד');
+                return;
+            }
 
             try {
+                console.log('Adding worker:', input.value);
+                
                 const worker = {
                     id: Date.now(),
                     name: input.value.trim(),
@@ -564,34 +594,68 @@
                 state.requirements[worker.id] = [];
                 state.blocks[worker.id] = {};
 
-                await db.ref('shift-manager/workers').set(state.workers);
-                await db.ref('shift-manager/constraints').set(state.constraints);
-                await db.ref('shift-manager/requirements').set(state.requirements);
+                console.log('Saving to Firebase...');
+                console.log('Workers:', state.workers);
 
-                input.value = '';
-                renderAllTabs();
-                showStatus('✅ עובד נוסף בהצלחה');
+                // Save to Firebase
+                db.ref('shift-manager/workers').set(state.workers, function(error) {
+                    if (error) {
+                        console.error('Error saving workers:', error);
+                        showStatus('❌ שגיאה בשמירת עובדים: ' + error.message, true);
+                        return;
+                    }
+                    console.log('Workers saved successfully');
+                    
+                    // Save constraints
+                    db.ref('shift-manager/constraints').set(state.constraints, function(error) {
+                        if (error) {
+                            console.error('Error saving constraints:', error);
+                            return;
+                        }
+                        console.log('Constraints saved successfully');
+                        
+                        // Save requirements
+                        db.ref('shift-manager/requirements').set(state.requirements, function(error) {
+                            if (error) {
+                                console.error('Error saving requirements:', error);
+                                return;
+                            }
+                            console.log('Requirements saved successfully');
+                            
+                            input.value = '';
+                            renderAllTabs();
+                            showStatus('✅ עובד נוסף בהצלחה: ' + worker.name);
+                        });
+                    });
+                });
+
             } catch (error) {
-                console.error('Error adding worker:', error);
-                showStatus('❌ שגיאה בהוספת עובד', true);
+                console.error('Error in addWorker:', error);
+                showStatus('❌ שגיאה: ' + error.message, true);
             }
         }
 
         // Remove Worker
-        async function removeWorker(workerId) {
+        function removeWorker(workerId) {
+            if (!confirm('בטוח שרוצה למחוק עובד זה?')) return;
+            
             try {
                 state.workers = state.workers.filter(w => w.id !== workerId);
                 delete state.blocks[workerId];
                 delete state.constraints[workerId];
                 delete state.requirements[workerId];
 
-                await db.ref('shift-manager/workers').set(state.workers);
-                await db.ref('shift-manager/blocks').set(state.blocks);
-                await db.ref('shift-manager/constraints').set(state.constraints);
-                await db.ref('shift-manager/requirements').set(state.requirements);
-
-                renderAllTabs();
-                showStatus('✅ עובד נמחק בהצלחה');
+                db.ref('shift-manager/workers').set(state.workers, function(error) {
+                    if (error) {
+                        console.error('Error:', error);
+                        return;
+                    }
+                    db.ref('shift-manager/blocks').set(state.blocks);
+                    db.ref('shift-manager/constraints').set(state.constraints);
+                    db.ref('shift-manager/requirements').set(state.requirements);
+                    renderAllTabs();
+                    showStatus('✅ עובד נמחק בהצלחה');
+                });
             } catch (error) {
                 console.error('Error removing worker:', error);
                 showStatus('❌ שגיאה במחיקת עובד', true);
@@ -599,41 +663,55 @@
         }
 
         // Toggle Block
-        async function toggleBlock(workerId, dayIdx, shiftId) {
+        function toggleBlock(workerId, dayIdx, shiftId) {
             try {
                 if (!state.blocks[workerId]) state.blocks[workerId] = {};
                 const key = `${dayIdx}-${shiftId}`;
                 state.blocks[workerId][key] = !state.blocks[workerId][key];
-                await db.ref('shift-manager/blocks').set(state.blocks);
-                renderAllTabs();
+                
+                db.ref('shift-manager/blocks').set(state.blocks, function(error) {
+                    if (error) {
+                        console.error('Error:', error);
+                        return;
+                    }
+                    renderAllTabs();
+                });
             } catch (error) {
                 console.error('Error toggling block:', error);
-                showStatus('❌ שגיאה בעדכון חסימה', true);
             }
         }
 
         // Update Constraint
-        async function updateConstraint(workerId, field, value) {
+        function updateConstraint(workerId, field, value) {
             try {
                 if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
                 state.constraints[workerId][field] = parseInt(value);
-                await db.ref('shift-manager/constraints').set(state.constraints);
+                
+                db.ref('shift-manager/constraints').set(state.constraints, function(error) {
+                    if (error) console.error('Error:', error);
+                });
             } catch (error) {
                 console.error('Error updating constraint:', error);
             }
         }
 
         // Add Requirement
-        async function addRequirement(workerId, type) {
+        function addRequirement(workerId, type) {
             try {
                 if (!state.requirements[workerId]) state.requirements[workerId] = [];
                 state.requirements[workerId].push({
                     id: Date.now(),
                     type: type
                 });
-                await db.ref('shift-manager/requirements').set(state.requirements);
-                renderAllTabs();
-                showStatus('✅ דרישה נוספה בהצלחה');
+                
+                db.ref('shift-manager/requirements').set(state.requirements, function(error) {
+                    if (error) {
+                        console.error('Error:', error);
+                        return;
+                    }
+                    renderAllTabs();
+                    showStatus('✅ דרישה נוספה בהצלחה');
+                });
             } catch (error) {
                 console.error('Error adding requirement:', error);
                 showStatus('❌ שגיאה בהוספת דרישה', true);
@@ -641,13 +719,16 @@
         }
 
         // Remove Requirement
-        async function removeRequirement(workerId, reqId) {
+        function removeRequirement(workerId, reqId) {
             try {
                 if (state.requirements[workerId]) {
                     state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
                 }
-                await db.ref('shift-manager/requirements').set(state.requirements);
-                renderAllTabs();
+                
+                db.ref('shift-manager/requirements').set(state.requirements, function(error) {
+                    if (error) console.error('Error:', error);
+                    renderAllTabs();
+                });
             } catch (error) {
                 console.error('Error removing requirement:', error);
             }
