@@ -87,6 +87,7 @@
             display: flex;
             gap: 12px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
         
         input[type="text"],
@@ -102,6 +103,7 @@
         
         input[type="text"] {
             flex: 1;
+            min-width: 200px;
         }
         
         button {
@@ -268,6 +270,7 @@
         .constraint-inputs {
             display: flex;
             gap: 16px;
+            flex-wrap: wrap;
         }
         
         .constraint-inputs label {
@@ -292,6 +295,22 @@
             padding: 40px 20px;
             color: #5f5e5a;
             grid-column: 1 / -1;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            background: #e6f1fb;
+            border-left: 4px solid #378add;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #185fa5;
+        }
+
+        .status.error {
+            background: #fcebeb;
+            border-left-color: #e24b4a;
+            color: #a32d2d;
         }
         
         @media (max-width: 768px) {
@@ -362,11 +381,14 @@
                 </div>
                 <div class="table-container" id="scheduleView"></div>
             </div>
+
+            <div id="statusMessage"></div>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+    <!-- Firebase SDK - Compat Version (works with global objects) -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     
     <script>
         // Firebase Configuration
@@ -380,8 +402,9 @@
             appId: "1:34411377515:web:8ccf4db8867b2fd7fcd22e"
         };
 
+        // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.getDatabase(app);
+        const db = firebase.database();
 
         // Constants
         const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -389,6 +412,14 @@
             { id: 'morning', name: 'בוקר', time: '06:00-14:00' },
             { id: 'evening', name: 'ערב', time: '14:00-22:00' },
             { id: 'night', name: 'לילה', time: '22:00-06:00' }
+        ];
+
+        const REQUIREMENT_TYPES = [
+            { value: 'shabbat', label: '🕯️ שבת ערב וליל שבת' },
+            { value: 'friday-night', label: '🌙 ערב שישי לילה' },
+            { value: 'weekend', label: '🎉 סוף שבוע' },
+            { value: 'no-night', label: '😴 ללא לילה' },
+            { value: 'morning-only', label: '🌅 בוקר בלבד' }
         ];
 
         // State Management
@@ -403,57 +434,32 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Loaded, setting up...');
             setupEventListeners();
             loadAllData();
         });
-        
-        // Also try immediately in case DOM is already loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupEventListeners);
-        } else {
-            setupEventListeners();
-        }
 
-        // Load all data from Firebase
-        async function loadAllData() {
-            try {
-                console.log('Loading data from Firebase...');
-                const workersRef = firebase.database().ref('shift-manager/workers');
-                const snapshot = await workersRef.get();
-                state.workers = snapshot.val() || [];
-                console.log('Loaded workers:', state.workers);
-                
-                const blocksRef = firebase.database().ref('shift-manager/blocks');
-                const blocksSnapshot = await blocksRef.get();
-                state.blocks = blocksSnapshot.val() || {};
-                
-                const constraintsRef = firebase.database().ref('shift-manager/constraints');
-                const constraintsSnapshot = await constraintsRef.get();
-                state.constraints = constraintsSnapshot.val() || {};
-
-                const requirementsRef = firebase.database().ref('shift-manager/requirements');
-                const requirementsSnapshot = await requirementsRef.get();
-                state.requirements = requirementsSnapshot.val() || {};
-
-                console.log('All data loaded, rendering tabs...');
-                renderAllTabs();
-            } catch (error) {
-                console.error('שגיאה בטעינת הנתונים:', error);
-                alert('שגיאה בחיבור ל-Firebase: ' + error.message);
-            }
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${isError ? 'error' : ''}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
         }
 
         // Setup Event Listeners
         function setupEventListeners() {
+            console.log('Setting up event listeners...');
+            
             // Tab switching
             const buttons = document.querySelectorAll('.tab-button');
-            console.log('found buttons:', buttons.length);
+            console.log('Found tab buttons:', buttons.length);
             
             buttons.forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.preventDefault();
                     const tabName = this.getAttribute('data-tab');
-                    console.log('clicking tab:', tabName);
+                    console.log('Switching to tab:', tabName);
                     switchTab(tabName);
                 });
             });
@@ -483,6 +489,8 @@
                     state.peoplePerShift = parseInt(e.target.value);
                 });
             }
+
+            console.log('Event listeners setup complete');
         }
 
         function switchTab(tabName) {
@@ -505,12 +513,38 @@
                 const contentTab = content.getAttribute('data-tab');
                 if (contentTab === tabName) {
                     content.classList.add('active');
-                    content.style.display = 'block';
                 } else {
                     content.classList.remove('active');
-                    content.style.display = 'none';
                 }
             });
+        }
+
+        // Load all data from Firebase
+        async function loadAllData() {
+            try {
+                console.log('Loading data from Firebase...');
+                showStatus('⏳ טוען נתונים...');
+                
+                const workersSnapshot = await db.ref('shift-manager/workers').once('value');
+                state.workers = workersSnapshot.val() || [];
+                console.log('Loaded workers:', state.workers);
+                
+                const blocksSnapshot = await db.ref('shift-manager/blocks').once('value');
+                state.blocks = blocksSnapshot.val() || {};
+                
+                const constraintsSnapshot = await db.ref('shift-manager/constraints').once('value');
+                state.constraints = constraintsSnapshot.val() || {};
+
+                const requirementsSnapshot = await db.ref('shift-manager/requirements').once('value');
+                state.requirements = requirementsSnapshot.val() || {};
+
+                console.log('All data loaded');
+                showStatus('✅ הנתונים נטענו בהצלחה');
+                renderAllTabs();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showStatus('❌ שגיאה בטעינת הנתונים: ' + error.message, true);
+            }
         }
 
         // Add Worker
@@ -518,74 +552,105 @@
             const input = document.getElementById('newWorkerName');
             if (!input.value.trim()) return;
 
-            const worker = {
-                id: Date.now(),
-                name: input.value.trim(),
-                createdAt: new Date().toISOString()
-            };
+            try {
+                const worker = {
+                    id: Date.now(),
+                    name: input.value.trim(),
+                    createdAt: new Date().toISOString()
+                };
 
-            state.workers.push(worker);
-            state.constraints[worker.id] = { min: 3, max: 6 };
-            state.requirements[worker.id] = [];
-            state.blocks[worker.id] = {};
+                state.workers.push(worker);
+                state.constraints[worker.id] = { min: 3, max: 6 };
+                state.requirements[worker.id] = [];
+                state.blocks[worker.id] = {};
 
-            await firebase.database().ref('shift-manager/workers').set(state.workers);
-            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
-            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+                await db.ref('shift-manager/workers').set(state.workers);
+                await db.ref('shift-manager/constraints').set(state.constraints);
+                await db.ref('shift-manager/requirements').set(state.requirements);
 
-            input.value = '';
-            renderAllTabs();
+                input.value = '';
+                renderAllTabs();
+                showStatus('✅ עובד נוסף בהצלחה');
+            } catch (error) {
+                console.error('Error adding worker:', error);
+                showStatus('❌ שגיאה בהוספת עובד', true);
+            }
         }
 
         // Remove Worker
         async function removeWorker(workerId) {
-            state.workers = state.workers.filter(w => w.id !== workerId);
-            delete state.blocks[workerId];
-            delete state.constraints[workerId];
-            delete state.requirements[workerId];
+            try {
+                state.workers = state.workers.filter(w => w.id !== workerId);
+                delete state.blocks[workerId];
+                delete state.constraints[workerId];
+                delete state.requirements[workerId];
 
-            await firebase.database().ref('shift-manager/workers').set(state.workers);
-            await firebase.database().ref('shift-manager/blocks').set(state.blocks);
-            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
-            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+                await db.ref('shift-manager/workers').set(state.workers);
+                await db.ref('shift-manager/blocks').set(state.blocks);
+                await db.ref('shift-manager/constraints').set(state.constraints);
+                await db.ref('shift-manager/requirements').set(state.requirements);
 
-            renderAllTabs();
+                renderAllTabs();
+                showStatus('✅ עובד נמחק בהצלחה');
+            } catch (error) {
+                console.error('Error removing worker:', error);
+                showStatus('❌ שגיאה במחיקת עובד', true);
+            }
         }
 
         // Toggle Block
         async function toggleBlock(workerId, dayIdx, shiftId) {
-            if (!state.blocks[workerId]) state.blocks[workerId] = {};
-            const key = `${dayIdx}-${shiftId}`;
-            state.blocks[workerId][key] = !state.blocks[workerId][key];
-            await firebase.database().ref('shift-manager/blocks').set(state.blocks);
-            renderAllTabs();
+            try {
+                if (!state.blocks[workerId]) state.blocks[workerId] = {};
+                const key = `${dayIdx}-${shiftId}`;
+                state.blocks[workerId][key] = !state.blocks[workerId][key];
+                await db.ref('shift-manager/blocks').set(state.blocks);
+                renderAllTabs();
+            } catch (error) {
+                console.error('Error toggling block:', error);
+                showStatus('❌ שגיאה בעדכון חסימה', true);
+            }
         }
 
         // Update Constraint
         async function updateConstraint(workerId, field, value) {
-            if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
-            state.constraints[workerId][field] = parseInt(value);
-            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
+            try {
+                if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
+                state.constraints[workerId][field] = parseInt(value);
+                await db.ref('shift-manager/constraints').set(state.constraints);
+            } catch (error) {
+                console.error('Error updating constraint:', error);
+            }
         }
 
         // Add Requirement
         async function addRequirement(workerId, type) {
-            if (!state.requirements[workerId]) state.requirements[workerId] = [];
-            state.requirements[workerId].push({
-                id: Date.now(),
-                type: type
-            });
-            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
-            renderAllTabs();
+            try {
+                if (!state.requirements[workerId]) state.requirements[workerId] = [];
+                state.requirements[workerId].push({
+                    id: Date.now(),
+                    type: type
+                });
+                await db.ref('shift-manager/requirements').set(state.requirements);
+                renderAllTabs();
+                showStatus('✅ דרישה נוספה בהצלחה');
+            } catch (error) {
+                console.error('Error adding requirement:', error);
+                showStatus('❌ שגיאה בהוספת דרישה', true);
+            }
         }
 
         // Remove Requirement
         async function removeRequirement(workerId, reqId) {
-            if (state.requirements[workerId]) {
-                state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
+            try {
+                if (state.requirements[workerId]) {
+                    state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
+                }
+                await db.ref('shift-manager/requirements').set(state.requirements);
+                renderAllTabs();
+            } catch (error) {
+                console.error('Error removing requirement:', error);
             }
-            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
-            renderAllTabs();
         }
 
         // Render Functions
@@ -648,14 +713,6 @@
                 return;
             }
 
-            const requirementTypes = [
-                { value: 'shabbat', label: '🕯️ שבת ערב וליל שבת' },
-                { value: 'friday-night', label: '🌙 ערב שישי לילה' },
-                { value: 'weekend', label: '🎉 סוף שבוע' },
-                { value: 'no-night', label: '😴 ללא לילה' },
-                { value: 'morning-only', label: '🌅 בוקר בלבד' }
-            ];
-
             list.innerHTML = state.workers.map(worker => `
                 <div class="card">
                     <div class="card-title">${worker.name}</div>
@@ -663,15 +720,15 @@
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0dcd5;">
                             ${(state.requirements[worker.id] || []).map(req => `
                                 <div class="requirement-item">
-                                    <span>${requirementTypes.find(t => t.value === req.type)?.label}</span>
+                                    <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
                                     <button onclick="removeRequirement(${worker.id}, ${req.id})">✕</button>
                                 </div>
                             `).join('')}
                         </div>
                     ` : ''}
-                    <select onchange="if (this.value) addRequirement(${worker.id}, this.value); this.value = ''">
+                    <select onchange="if (this.value) addRequirement(${worker.id}, this.value); this.value = '';" style="width: 100%;">
                         <option value="">בחר דרישה...</option>
-                        ${requirementTypes.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+                        ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
                 </div>
             `).join('');
@@ -708,46 +765,53 @@
 
         // Generate Schedule
         function generateSchedule() {
-            const schedule = {};
-            const workerShifts = {};
+            try {
+                console.log('Generating schedule...');
+                const schedule = {};
+                const workerShifts = {};
 
-            // Initialize
-            for (let day = 0; day < 7; day++) {
-                for (let shift of SHIFTS) {
-                    schedule[`${day}-${shift.id}`] = [];
-                }
-            }
-
-            state.workers.forEach(w => {
-                workerShifts[w.id] = 0;
-            });
-
-            // Smart allocation
-            for (let day = 0; day < 7; day++) {
-                for (let shift of SHIFTS) {
-                    const key = `${day}-${shift.id}`;
-
-                    let candidates = state.workers.filter(w => {
-                        const isBlocked = state.blocks[w.id]?.[key];
-                        const constraint = state.constraints[w.id] || { min: 3, max: 6 };
-                        const shiftsCount = workerShifts[w.id] || 0;
-                        
-                        return !isBlocked && shiftsCount < constraint.max;
-                    });
-
-                    // Sort by load balancing
-                    candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
-
-                    // Assign
-                    for (let i = 0; i < state.peoplePerShift && i < candidates.length; i++) {
-                        schedule[key].push(candidates[i].id);
-                        workerShifts[candidates[i].id]++;
+                // Initialize
+                for (let day = 0; day < 7; day++) {
+                    for (let shift of SHIFTS) {
+                        schedule[`${day}-${shift.id}`] = [];
                     }
                 }
-            }
 
-            state.schedule = schedule;
-            renderScheduleTable();
+                state.workers.forEach(w => {
+                    workerShifts[w.id] = 0;
+                });
+
+                // Smart allocation
+                for (let day = 0; day < 7; day++) {
+                    for (let shift of SHIFTS) {
+                        const key = `${day}-${shift.id}`;
+
+                        let candidates = state.workers.filter(w => {
+                            const isBlocked = state.blocks[w.id]?.[key];
+                            const constraint = state.constraints[w.id] || { min: 3, max: 6 };
+                            const shiftsCount = workerShifts[w.id] || 0;
+                            
+                            return !isBlocked && shiftsCount < constraint.max;
+                        });
+
+                        // Sort by load balancing
+                        candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
+
+                        // Assign
+                        for (let i = 0; i < state.peoplePerShift && i < candidates.length; i++) {
+                            schedule[key].push(candidates[i].id);
+                            workerShifts[candidates[i].id]++;
+                        }
+                    }
+                }
+
+                state.schedule = schedule;
+                renderScheduleTable();
+                showStatus('✅ סידור נוצר בהצלחה!');
+            } catch (error) {
+                console.error('Error generating schedule:', error);
+                showStatus('❌ שגיאה ביצירת סידור', true);
+            }
         }
 
         function renderScheduleTable() {
@@ -790,6 +854,8 @@
 
             view.innerHTML = html;
         }
+
+        console.log('Script loaded successfully');
     </script>
 </body>
 </html>
