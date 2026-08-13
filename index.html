@@ -402,15 +402,26 @@
         };
 
         // Initialize
-        loadAllData();
-        setupEventListeners();
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadAllData();
+        });
+        
+        // Also try immediately in case DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupEventListeners);
+        } else {
+            setupEventListeners();
+        }
 
         // Load all data from Firebase
         async function loadAllData() {
             try {
+                console.log('Loading data from Firebase...');
                 const workersRef = firebase.database().ref('shift-manager/workers');
                 const snapshot = await workersRef.get();
                 state.workers = snapshot.val() || [];
+                console.log('Loaded workers:', state.workers);
                 
                 const blocksRef = firebase.database().ref('shift-manager/blocks');
                 const blocksSnapshot = await blocksRef.get();
@@ -424,41 +435,81 @@
                 const requirementsSnapshot = await requirementsRef.get();
                 state.requirements = requirementsSnapshot.val() || {};
 
+                console.log('All data loaded, rendering tabs...');
                 renderAllTabs();
             } catch (error) {
                 console.error('שגיאה בטעינת הנתונים:', error);
+                alert('שגיאה בחיבור ל-Firebase: ' + error.message);
             }
         }
 
         // Setup Event Listeners
         function setupEventListeners() {
             // Tab switching
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.addEventListener('click', () => switchTab(button.dataset.tab));
+            const buttons = document.querySelectorAll('.tab-button');
+            console.log('found buttons:', buttons.length);
+            
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabName = this.getAttribute('data-tab');
+                    console.log('clicking tab:', tabName);
+                    switchTab(tabName);
+                });
             });
 
             // Add worker button
-            document.getElementById('addWorkerBtn').addEventListener('click', addWorker);
-            document.getElementById('newWorkerName').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addWorker();
-            });
+            const addBtn = document.getElementById('addWorkerBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', addWorker);
+            }
+            
+            const nameInput = document.getElementById('newWorkerName');
+            if (nameInput) {
+                nameInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addWorker();
+                });
+            }
 
             // Generate schedule
-            document.getElementById('generateScheduleBtn').addEventListener('click', generateSchedule);
-            document.getElementById('peoplePerShift').addEventListener('change', (e) => {
-                state.peoplePerShift = parseInt(e.target.value);
-            });
+            const scheduleBtn = document.getElementById('generateScheduleBtn');
+            if (scheduleBtn) {
+                scheduleBtn.addEventListener('click', generateSchedule);
+            }
+            
+            const peopleInput = document.getElementById('peoplePerShift');
+            if (peopleInput) {
+                peopleInput.addEventListener('change', (e) => {
+                    state.peoplePerShift = parseInt(e.target.value);
+                });
+            }
         }
 
         function switchTab(tabName) {
+            console.log('switchTab called with:', tabName);
+            
             // Update active tab button
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => {
+                const btnTab = btn.getAttribute('data-tab');
+                if (btnTab === tabName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
             });
 
             // Update active tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.toggle('active', content.dataset.tab === tabName);
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                const contentTab = content.getAttribute('data-tab');
+                if (contentTab === tabName) {
+                    content.classList.add('active');
+                    content.style.display = 'block';
+                } else {
+                    content.classList.remove('active');
+                    content.style.display = 'none';
+                }
             });
         }
 
