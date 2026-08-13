@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מנהל סידור משמרות</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f9f7f4;
+            color: #2c2a27;
+            direction: rtl;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: #2c2a27;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e0dcd5;
+            flex-wrap: wrap;
+        }
+        
+        .tab-button {
+            padding: 12px 16px;
+            background: transparent;
+            color: #5f5e5a;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            border-radius: 4px 4px 0 0;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-button.active {
+            background: #d97757;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: rgba(217, 119, 87, 0.1);
+        }
+        
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select {
+            padding: 10px 12px;
+            border: 1px solid #e0dcd5;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            color: #2c2a27;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #7f77dd;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #6d68c4;
+        }
+        
+        .btn-success {
+            background: #639922;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #517a1a;
+        }
+        
+        .btn-danger {
+            background: #e24b4a;
+            color: white;
+            padding: 4px 12px;
+            font-size: 13px;
+        }
+        
+        .btn-danger:hover {
+            background: #c03c3b;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        
+        .grid-large {
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        }
+        
+        .card {
+            padding: 16px;
+            background: #f9f7f4;
+            border: 1px solid #e0dcd5;
+            border-radius: 6px;
+        }
+        
+        .card-header {
+            font-weight: 500;
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #2c2a27;
+        }
+        
+        .shift-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .shift-btn {
+            padding: 6px 8px;
+            border: 1px solid #e0dcd5;
+            background: white;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .shift-btn.blocked {
+            background: #e24b4a;
+            color: white;
+            border-color: #e24b4a;
+        }
+        
+        .shift-btn:hover {
+            border-color: #d97757;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        th {
+            padding: 12px;
+            border: 1px solid #e0dcd5;
+            text-align: center;
+            font-weight: 600;
+            background: #f9f7f4;
+        }
+        
+        td {
+            padding: 12px;
+            border: 1px solid #e0dcd5;
+            text-align: center;
+        }
+        
+        .worker-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #d97757;
+            color: white;
+            border-radius: 3px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .requirement-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: white;
+            border-radius: 3px;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        
+        .requirement-item button {
+            background: none;
+            border: none;
+            color: #e24b4a;
+            cursor: pointer;
+            padding: 0;
+            font-size: 12px;
+        }
+        
+        .constraint-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .constraint-inputs {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .constraint-inputs label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .constraint-inputs input {
+            width: 50px !important;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #5f5e5a;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #5f5e5a;
+            grid-column: 1 / -1;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-large {
+                grid-template-columns: 1fr;
+            }
+            
+            .shift-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .tabs {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="container">
+            <h1>📋 מנהל סידור משמרות</h1>
+            
+            <!-- Tabs Navigation -->
+            <div class="tabs">
+                <button class="tab-button active" data-tab="workers">👥 עובדים</button>
+                <button class="tab-button" data-tab="blocks">🚫 חסימות</button>
+                <button class="tab-button" data-tab="requirements">📝 דרישות</button>
+                <button class="tab-button" data-tab="constraints">⚙️ הגדרות</button>
+                <button class="tab-button" data-tab="schedule">✅ סידור סופי</button>
+            </div>
+
+            <!-- Workers Tab -->
+            <div class="tab-content active" data-tab="workers">
+                <div class="form-group">
+                    <input type="text" id="newWorkerName" placeholder="שם עובד חדש...">
+                    <button class="btn-primary" id="addWorkerBtn">הוסף עובד</button>
+                </div>
+                <div class="grid" id="workersList"></div>
+            </div>
+
+            <!-- Blocks Tab -->
+            <div class="tab-content" data-tab="blocks">
+                <div class="grid grid-large" id="blocksList"></div>
+            </div>
+
+            <!-- Requirements Tab -->
+            <div class="tab-content" data-tab="requirements">
+                <div class="grid grid-large" id="requirementsList"></div>
+            </div>
+
+            <!-- Constraints Tab -->
+            <div class="tab-content" data-tab="constraints">
+                <div class="grid grid-large" id="constraintsList"></div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div class="tab-content" data-tab="schedule">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        אנשים בכל משמרת:
+                        <input type="number" id="peoplePerShift" value="3" min="1" max="10" style="width: 60px;">
+                    </label>
+                    <button class="btn-success" id="generateScheduleBtn">יצור סידור אוטומטי</button>
+                </div>
+                <div class="table-container" id="scheduleView"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+    
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBJQQrGZlggApRD2pyLr_GrXxWL0Vg4LoE",
+            authDomain: "sidorh.firebaseapp.com",
+            databaseURL: "https://sidorh-default-rtdb.firebaseio.com",
+            projectId: "sidorh",
+            storageBucket: "sidorh.firebasestorage.app",
+            messagingSenderId: "34411377515",
+            appId: "1:34411377515:web:8ccf4db8867b2fd7fcd22e"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.getDatabase(app);
+
+        // Constants
+        const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+        const SHIFTS = [
+            { id: 'morning', name: 'בוקר', time: '06:00-14:00' },
+            { id: 'evening', name: 'ערב', time: '14:00-22:00' },
+            { id: 'night', name: 'לילה', time: '22:00-06:00' }
+        ];
+
+        // State Management
+        const state = {
+            workers: [],
+            blocks: {},
+            constraints: {},
+            requirements: {},
+            schedule: null,
+            peoplePerShift: 3
+        };
+
+        // Initialize
+        loadAllData();
+        setupEventListeners();
+
+        // Load all data from Firebase
+        async function loadAllData() {
+            try {
+                const workersRef = firebase.database().ref('shift-manager/workers');
+                const snapshot = await workersRef.get();
+                state.workers = snapshot.val() || [];
+                
+                const blocksRef = firebase.database().ref('shift-manager/blocks');
+                const blocksSnapshot = await blocksRef.get();
+                state.blocks = blocksSnapshot.val() || {};
+                
+                const constraintsRef = firebase.database().ref('shift-manager/constraints');
+                const constraintsSnapshot = await constraintsRef.get();
+                state.constraints = constraintsSnapshot.val() || {};
+
+                const requirementsRef = firebase.database().ref('shift-manager/requirements');
+                const requirementsSnapshot = await requirementsRef.get();
+                state.requirements = requirementsSnapshot.val() || {};
+
+                renderAllTabs();
+            } catch (error) {
+                console.error('שגיאה בטעינת הנתונים:', error);
+            }
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => switchTab(button.dataset.tab));
+            });
+
+            // Add worker button
+            document.getElementById('addWorkerBtn').addEventListener('click', addWorker);
+            document.getElementById('newWorkerName').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addWorker();
+            });
+
+            // Generate schedule
+            document.getElementById('generateScheduleBtn').addEventListener('click', generateSchedule);
+            document.getElementById('peoplePerShift').addEventListener('change', (e) => {
+                state.peoplePerShift = parseInt(e.target.value);
+            });
+        }
+
+        function switchTab(tabName) {
+            // Update active tab button
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+
+            // Update active tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.dataset.tab === tabName);
+            });
+        }
+
+        // Add Worker
+        async function addWorker() {
+            const input = document.getElementById('newWorkerName');
+            if (!input.value.trim()) return;
+
+            const worker = {
+                id: Date.now(),
+                name: input.value.trim(),
+                createdAt: new Date().toISOString()
+            };
+
+            state.workers.push(worker);
+            state.constraints[worker.id] = { min: 3, max: 6 };
+            state.requirements[worker.id] = [];
+            state.blocks[worker.id] = {};
+
+            await firebase.database().ref('shift-manager/workers').set(state.workers);
+            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
+            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+
+            input.value = '';
+            renderAllTabs();
+        }
+
+        // Remove Worker
+        async function removeWorker(workerId) {
+            state.workers = state.workers.filter(w => w.id !== workerId);
+            delete state.blocks[workerId];
+            delete state.constraints[workerId];
+            delete state.requirements[workerId];
+
+            await firebase.database().ref('shift-manager/workers').set(state.workers);
+            await firebase.database().ref('shift-manager/blocks').set(state.blocks);
+            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
+            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+
+            renderAllTabs();
+        }
+
+        // Toggle Block
+        async function toggleBlock(workerId, dayIdx, shiftId) {
+            if (!state.blocks[workerId]) state.blocks[workerId] = {};
+            const key = `${dayIdx}-${shiftId}`;
+            state.blocks[workerId][key] = !state.blocks[workerId][key];
+            await firebase.database().ref('shift-manager/blocks').set(state.blocks);
+            renderAllTabs();
+        }
+
+        // Update Constraint
+        async function updateConstraint(workerId, field, value) {
+            if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
+            state.constraints[workerId][field] = parseInt(value);
+            await firebase.database().ref('shift-manager/constraints').set(state.constraints);
+        }
+
+        // Add Requirement
+        async function addRequirement(workerId, type) {
+            if (!state.requirements[workerId]) state.requirements[workerId] = [];
+            state.requirements[workerId].push({
+                id: Date.now(),
+                type: type
+            });
+            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+            renderAllTabs();
+        }
+
+        // Remove Requirement
+        async function removeRequirement(workerId, reqId) {
+            if (state.requirements[workerId]) {
+                state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
+            }
+            await firebase.database().ref('shift-manager/requirements').set(state.requirements);
+            renderAllTabs();
+        }
+
+        // Render Functions
+        function renderAllTabs() {
+            renderWorkers();
+            renderBlocks();
+            renderRequirements();
+            renderConstraints();
+        }
+
+        function renderWorkers() {
+            const list = document.getElementById('workersList');
+            if (state.workers.length === 0) {
+                list.innerHTML = '<div class="empty-state">לא נוספו עובדים עדיין</div>';
+                return;
+            }
+
+            list.innerHTML = state.workers.map(worker => `
+                <div class="card">
+                    <div class="card-header">
+                        <span>${worker.name}</span>
+                        <button class="btn-danger" onclick="removeWorker(${worker.id})">מחק</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderBlocks() {
+            const list = document.getElementById('blocksList');
+            if (state.workers.length === 0) {
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                return;
+            }
+
+            list.innerHTML = state.workers.map(worker => `
+                <div class="card">
+                    <div class="card-title">${worker.name}</div>
+                    <div class="shift-buttons">
+                        ${DAYS.flatMap((day, dayIdx) => 
+                            SHIFTS.map(shift => {
+                                const key = `${dayIdx}-${shift.id}`;
+                                const isBlocked = state.blocks[worker.id]?.[key];
+                                return `
+                                    <button class="shift-btn ${isBlocked ? 'blocked' : ''}" 
+                                            onclick="toggleBlock(${worker.id}, ${dayIdx}, '${shift.id}')">
+                                        ${day.slice(0, 1)}${shift.name.slice(0, 1)}
+                                    </button>
+                                `;
+                            })
+                        ).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRequirements() {
+            const list = document.getElementById('requirementsList');
+            if (state.workers.length === 0) {
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                return;
+            }
+
+            const requirementTypes = [
+                { value: 'shabbat', label: '🕯️ שבת ערב וליל שבת' },
+                { value: 'friday-night', label: '🌙 ערב שישי לילה' },
+                { value: 'weekend', label: '🎉 סוף שבוע' },
+                { value: 'no-night', label: '😴 ללא לילה' },
+                { value: 'morning-only', label: '🌅 בוקר בלבד' }
+            ];
+
+            list.innerHTML = state.workers.map(worker => `
+                <div class="card">
+                    <div class="card-title">${worker.name}</div>
+                    ${(state.requirements[worker.id] || []).length > 0 ? `
+                        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0dcd5;">
+                            ${(state.requirements[worker.id] || []).map(req => `
+                                <div class="requirement-item">
+                                    <span>${requirementTypes.find(t => t.value === req.type)?.label}</span>
+                                    <button onclick="removeRequirement(${worker.id}, ${req.id})">✕</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <select onchange="if (this.value) addRequirement(${worker.id}, this.value); this.value = ''">
+                        <option value="">בחר דרישה...</option>
+                        ${requirementTypes.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        function renderConstraints() {
+            const list = document.getElementById('constraintsList');
+            if (state.workers.length === 0) {
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                return;
+            }
+
+            list.innerHTML = state.workers.map(worker => {
+                const constraint = state.constraints[worker.id] || { min: 3, max: 6 };
+                return `
+                    <div class="card">
+                        <div class="card-title">${worker.name}</div>
+                        <div class="constraint-inputs">
+                            <label>
+                                מינ:
+                                <input type="number" value="${constraint.min}" min="1" max="7" 
+                                       onchange="updateConstraint(${worker.id}, 'min', this.value)">
+                            </label>
+                            <label>
+                                מקס:
+                                <input type="number" value="${constraint.max}" min="1" max="7"
+                                       onchange="updateConstraint(${worker.id}, 'max', this.value)">
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Generate Schedule
+        function generateSchedule() {
+            const schedule = {};
+            const workerShifts = {};
+
+            // Initialize
+            for (let day = 0; day < 7; day++) {
+                for (let shift of SHIFTS) {
+                    schedule[`${day}-${shift.id}`] = [];
+                }
+            }
+
+            state.workers.forEach(w => {
+                workerShifts[w.id] = 0;
+            });
+
+            // Smart allocation
+            for (let day = 0; day < 7; day++) {
+                for (let shift of SHIFTS) {
+                    const key = `${day}-${shift.id}`;
+
+                    let candidates = state.workers.filter(w => {
+                        const isBlocked = state.blocks[w.id]?.[key];
+                        const constraint = state.constraints[w.id] || { min: 3, max: 6 };
+                        const shiftsCount = workerShifts[w.id] || 0;
+                        
+                        return !isBlocked && shiftsCount < constraint.max;
+                    });
+
+                    // Sort by load balancing
+                    candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
+
+                    // Assign
+                    for (let i = 0; i < state.peoplePerShift && i < candidates.length; i++) {
+                        schedule[key].push(candidates[i].id);
+                        workerShifts[candidates[i].id]++;
+                    }
+                }
+            }
+
+            state.schedule = schedule;
+            renderScheduleTable();
+        }
+
+        function renderScheduleTable() {
+            if (!state.schedule) return;
+
+            const view = document.getElementById('scheduleView');
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>משמרת</th>
+                            ${DAYS.map(day => `<th>${day}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            SHIFTS.forEach(shift => {
+                html += `<tr><td style="font-weight: 600; background: #f9f7f4;">${shift.name}</td>`;
+                
+                for (let day = 0; day < 7; day++) {
+                    const key = `${day}-${shift.id}`;
+                    const workers = state.schedule[key] || [];
+                    html += `<td>`;
+                    workers.forEach(workerId => {
+                        const worker = state.workers.find(w => w.id === workerId);
+                        html += `<div class="worker-badge">${worker?.name}</div>`;
+                    });
+                    html += `</td>`;
+                }
+                
+                html += `</tr>`;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            view.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
