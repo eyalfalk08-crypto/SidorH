@@ -243,12 +243,13 @@
 
         function renderWorkers() {
             const list = document.getElementById('workersList');
-            console.log('renderWorkers:', state.workers.length);
+            console.log('renderWorkers:', state.workers.length, 'list element:', list);
             if (!state.workers.length) {
                 list.innerHTML = '<div class="empty-state">אין עובדים</div>';
+                console.log('No workers, showing empty state');
                 return;
             }
-            list.innerHTML = state.workers.map(w => `
+            const html = state.workers.map(w => `
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span>${w.name}</span>
@@ -256,6 +257,10 @@
                     </div>
                 </div>
             `).join('');
+            console.log('HTML created, length:', html.length);
+            console.log('Setting innerHTML...');
+            list.innerHTML = html;
+            console.log('innerHTML set. Current content:', list.innerHTML.substring(0, 100));
         }
 
         function renderBlocks() {
