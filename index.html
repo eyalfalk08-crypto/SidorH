@@ -26,8 +26,8 @@
         .btn-success { background: #639922; color: white; }
         .btn-danger { background: #e24b4a; color: white; padding: 4px 12px; font-size: 13px; }
         
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
-        .grid-large { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+        .grid { display: none !important; }
+        .grid-large { display: none !important; }
         
         .card { padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; }
         .card-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
@@ -65,22 +65,22 @@
                 <input type="text" id="newWorkerName" placeholder="שם עובד חדש...">
                 <button class="btn-primary" id="addWorkerBtn">הוסף עובד</button>
             </div>
-            <div class="grid" id="workersList"></div>
+            <div id="workersList"></div>
         </div>
 
         <!-- Blocks Tab -->
         <div class="tab-content" data-tab="blocks">
-            <div class="grid grid-large" id="blocksList"></div>
+            <div id="blocksList"></div>
         </div>
 
         <!-- Requirements Tab -->
         <div class="tab-content" data-tab="requirements">
-            <div class="grid grid-large" id="requirementsList"></div>
+            <div id="requirementsList"></div>
         </div>
 
         <!-- Constraints Tab -->
         <div class="tab-content" data-tab="constraints">
-            <div class="grid grid-large" id="constraintsList"></div>
+            <div id="constraintsList"></div>
         </div>
 
         <!-- Schedule Tab -->
@@ -261,80 +261,71 @@
         function renderBlocks() {
             const list = document.getElementById('blocksList');
             if (!state.workers.length) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.innerHTML = 'הוסף עובדים קודם';
                 return;
             }
             const html = state.workers.map(w => `
-                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; min-width: 350px;">
-                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                        ${DAYS.flatMap((day, dayIdx) => 
-                            SHIFTS.map(shift => {
-                                const key = `${dayIdx}-${shift.id}`;
-                                const blocked = state.blocks[w.id]?.[key];
-                                return `<button style="padding: 6px 8px; border: 1px solid ${blocked ? '#e24b4a' : '#e0dcd5'}; background: ${blocked ? '#e24b4a' : 'white'}; color: ${blocked ? 'white' : '#2c2a27'}; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500;" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
-                            })
-                        ).join('')}
-                    </div>
+                <div style="border: 1px solid green; padding: 10px; margin: 5px;">
+                    <div><strong>${w.name}</strong></div>
+                    ${DAYS.map((day, dayIdx) => 
+                        SHIFTS.map(shift => {
+                            const key = `${dayIdx}-${shift.id}`;
+                            const blocked = state.blocks[w.id]?.[key];
+                            return `<button style="background: ${blocked ? 'red' : 'white'}; color: ${blocked ? 'white' : 'black'}; padding: 4px 8px; margin: 2px; cursor: pointer;" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
+                        })
+                    ).join('')}
                 </div>
             `).join('');
             list.innerHTML = html;
-            list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px;';
         }
 
         function renderRequirements() {
             const list = document.getElementById('requirementsList');
             if (!state.workers.length) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.innerHTML = 'הוסף עובדים קודם';
                 return;
             }
             const html = state.workers.map(w => `
-                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; min-width: 350px;">
-                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
-                    ${(state.requirements[w.id] || []).length > 0 ? `
-                        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0dcd5;">
-                            ${(state.requirements[w.id] || []).map(req => `
-                                <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 3px; margin-bottom: 4px; font-size: 13px;">
-                                    <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
-                                    <button style="background: none; border: none; color: #e24b4a; cursor: pointer; padding: 0; font-size: 12px;" onclick="removeRequirement(${w.id}, ${req.id})">✕</button>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%; padding: 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
+                <div style="border: 1px solid blue; padding: 10px; margin: 5px;">
+                    <div><strong>${w.name}</strong></div>
+                    ${(state.requirements[w.id] || []).length > 0 ? 
+                        (state.requirements[w.id] || []).map(req => `
+                            <div style="padding: 5px; background: #f0f0f0; margin: 3px;">
+                                ${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}
+                                <button onclick="removeRequirement(${w.id}, ${req.id})" style="margin-right: 10px;">✕</button>
+                            </div>
+                        `).join('')
+                    : ''}
+                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';">
                         <option value="">בחר דרישה...</option>
                         ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
                 </div>
             `).join('');
             list.innerHTML = html;
-            list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px;';
         }
 
         function renderConstraints() {
             const list = document.getElementById('constraintsList');
             if (!state.workers.length) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.innerHTML = 'הוסף עובדים קודם';
                 return;
             }
             const html = state.workers.map(w => {
                 const c = state.constraints[w.id] || { min: 3, max: 6 };
                 return `
-                    <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; min-width: 350px;">
-                        <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
-                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                            <label style="font-size: 13px;">
-                                מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px; padding: 4px 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
-                            </label>
-                            <label style="font-size: 13px;">
-                                מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px; padding: 4px 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
-                            </label>
-                        </div>
+                    <div style="border: 1px solid purple; padding: 10px; margin: 5px;">
+                        <div><strong>${w.name}</strong></div>
+                        <label>
+                            מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px;">
+                        </label>
+                        <label>
+                            מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px;">
+                        </label>
                     </div>
                 `;
             }).join('');
             list.innerHTML = html;
-            list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px;';
         }
 
         // Generate Schedule
