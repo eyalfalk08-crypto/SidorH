@@ -70,6 +70,11 @@
 
         <!-- Blocks Tab -->
         <div class="tab-content" data-tab="blocks">
+            <div class="form-group">
+                <select id="blockWorkerSelect" style="flex: 1; min-width: 200px;">
+                    <option value="">בחר עובד...</option>
+                </select>
+            </div>
             <div id="blocksList"></div>
         </div>
 
@@ -121,7 +126,8 @@
             constraints: {},
             requirements: {},
             schedule: null,
-            peoplePerShift: 3
+            peoplePerShift: 3,
+            selectedBlockWorker: null
         };
 
         // localStorage helpers
@@ -161,6 +167,12 @@
             });
         });
 
+        // Block worker selection
+        document.getElementById('blockWorkerSelect').addEventListener('change', (e) => {
+            state.selectedBlockWorker = e.target.value ? parseInt(e.target.value) : null;
+            renderBlocks();
+        });
+
         // Add Worker
         document.getElementById('addWorkerBtn').addEventListener('click', () => {
             const input = document.getElementById('newWorkerName');
@@ -193,6 +205,7 @@
             delete state.blocks[id];
             delete state.constraints[id];
             delete state.requirements[id];
+            if (state.selectedBlockWorker === id) state.selectedBlockWorker = null;
             saveState();
             renderAll();
             showStatus('✅ עובד נמחק');
@@ -249,33 +262,59 @@
                 return;
             }
             const html = state.workers.map(w => `
-                <div style="border: 1px solid red; padding: 10px; margin: 5px;">
-                    ${w.name}
-                    <button onclick="removeWorker(${w.id})">מחק</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 8px;">
+                    <span>${w.name}</span>
+                    <button class="btn-danger" onclick="removeWorker(${w.id})">מחק</button>
                 </div>
             `).join('');
             list.innerHTML = html;
-            console.log('HTML set, children:', list.children.length, 'height:', list.offsetHeight);
         }
 
         function renderBlocks() {
+            const select = document.getElementById('blockWorkerSelect');
             const list = document.getElementById('blocksList');
+
             if (!state.workers.length) {
+                select.innerHTML = '<option value="">אין עובדים</option>';
                 list.innerHTML = 'הוסף עובדים קודם';
                 return;
             }
-            const html = state.workers.map(w => `
-                <div style="border: 1px solid green; padding: 10px; margin: 5px;">
-                    <div><strong>${w.name}</strong></div>
-                    ${DAYS.map((day, dayIdx) => 
-                        SHIFTS.map(shift => {
-                            const key = `${dayIdx}-${shift.id}`;
-                            const blocked = state.blocks[w.id]?.[key];
-                            return `<button style="background: ${blocked ? 'red' : 'white'}; color: ${blocked ? 'white' : 'black'}; padding: 4px 8px; margin: 2px; cursor: pointer;" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
-                        })
-                    ).join('')}
-                </div>
-            `).join('');
+
+            // Build dropdown (preserve current selection)
+            const currentSelection = state.selectedBlockWorker;
+            select.innerHTML = '<option value="">בחר עובד...</option>' +
+                state.workers.map(w => `<option value="${w.id}" ${currentSelection === w.id ? 'selected' : ''}>${w.name}</option>`).join('');
+
+            if (!state.selectedBlockWorker) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">בחר עובד כדי לסמן חסימות</div>';
+                return;
+            }
+
+            const worker = state.workers.find(w => w.id === state.selectedBlockWorker);
+            if (!worker) {
+                state.selectedBlockWorker = null;
+                list.innerHTML = '';
+                return;
+            }
+
+            let html = `<div style="margin-bottom: 12px; font-weight: 600;">חסימות עבור: ${worker.name}</div>`;
+            html += `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
+
+            SHIFTS.forEach(shift => {
+                html += `<tr><td style="font-weight: 600; background: #f9f7f4;">${shift.name}</td>`;
+                for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+                    const key = `${dayIdx}-${shift.id}`;
+                    const blocked = state.blocks[worker.id]?.[key];
+                    html += `<td>
+                        <button style="width: 100%; padding: 8px; border: 1px solid ${blocked ? '#e24b4a' : '#e0dcd5'}; background: ${blocked ? '#e24b4a' : 'white'}; color: ${blocked ? 'white' : '#2c2a27'}; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500;" onclick="toggleBlock(${worker.id}, ${dayIdx}, '${shift.id}')">
+                            ${blocked ? '🚫 חסום' : 'פנוי'}
+                        </button>
+                    </td>`;
+                }
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
             list.innerHTML = html;
         }
 
@@ -286,17 +325,17 @@
                 return;
             }
             const html = state.workers.map(w => `
-                <div style="border: 1px solid blue; padding: 10px; margin: 5px;">
-                    <div><strong>${w.name}</strong></div>
+                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;">${w.name}</div>
                     ${(state.requirements[w.id] || []).length > 0 ? 
                         (state.requirements[w.id] || []).map(req => `
-                            <div style="padding: 5px; background: #f0f0f0; margin: 3px;">
-                                ${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}
-                                <button onclick="removeRequirement(${w.id}, ${req.id})" style="margin-right: 10px;">✕</button>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border-radius: 3px; margin-bottom: 4px; font-size: 13px;">
+                                <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
+                                <button onclick="removeRequirement(${w.id}, ${req.id})" style="background: none; border: none; color: #e24b4a; cursor: pointer; font-size: 14px;">✕</button>
                             </div>
                         `).join('')
                     : ''}
-                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';">
+                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%; margin-top: 8px;">
                         <option value="">בחר דרישה...</option>
                         ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
@@ -314,14 +353,16 @@
             const html = state.workers.map(w => {
                 const c = state.constraints[w.id] || { min: 3, max: 6 };
                 return `
-                    <div style="border: 1px solid purple; padding: 10px; margin: 5px;">
-                        <div><strong>${w.name}</strong></div>
-                        <label>
-                            מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px;">
-                        </label>
-                        <label>
-                            מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px;">
-                        </label>
+                    <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="font-weight: 600;">${w.name}</div>
+                        <div style="display: flex; gap: 16px;">
+                            <label style="font-size: 13px;">
+                                מינ׳: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 60px;">
+                            </label>
+                            <label style="font-size: 13px;">
+                                מקס׳: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 60px;">
+                            </label>
+                        </div>
                     </div>
                 `;
             }).join('');
