@@ -245,95 +245,102 @@
             const list = document.getElementById('workersList');
             console.log('renderWorkers:', state.workers.length, 'list element:', list);
             if (!state.workers.length) {
-                list.innerHTML = '<div class="empty-state">אין עובדים</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">אין עובדים</div>';
                 console.log('No workers, showing empty state');
                 return;
             }
             const html = state.workers.map(w => `
-                <div class="card">
+                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span>${w.name}</span>
-                        <button class="btn-danger" onclick="removeWorker(${w.id})">מחק</button>
+                        <button style="background: #e24b4a; color: white; padding: 4px 12px; font-size: 13px; border: none; border-radius: 3px; cursor: pointer;" onclick="removeWorker(${w.id})">מחק</button>
                     </div>
                 </div>
             `).join('');
             console.log('HTML created, length:', html.length);
             console.log('Setting innerHTML...');
             list.innerHTML = html;
-            console.log('innerHTML set. Current content:', list.innerHTML.substring(0, 100));
+            list.style.display = 'block';
+            console.log('innerHTML set. Content exists:', list.children.length > 0);
         }
 
         function renderBlocks() {
             const list = document.getElementById('blocksList');
             if (!state.workers.length) {
-                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
                 return;
             }
-            list.innerHTML = state.workers.map(w => `
-                <div class="card">
-                    <div class="card-title">${w.name}</div>
-                    <div class="shift-buttons">
+            const html = state.workers.map(w => `
+                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                         ${DAYS.flatMap((day, dayIdx) => 
                             SHIFTS.map(shift => {
                                 const key = `${dayIdx}-${shift.id}`;
                                 const blocked = state.blocks[w.id]?.[key];
-                                return `<button class="shift-btn ${blocked ? 'blocked' : ''}" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
+                                return `<button style="padding: 6px 8px; border: 1px solid ${blocked ? '#e24b4a' : '#e0dcd5'}; background: ${blocked ? '#e24b4a' : 'white'}; color: ${blocked ? 'white' : '#2c2a27'}; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500;" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
                             })
                         ).join('')}
                     </div>
                 </div>
             `).join('');
+            list.innerHTML = html;
+            list.style.display = 'grid';
         }
 
         function renderRequirements() {
             const list = document.getElementById('requirementsList');
             if (!state.workers.length) {
-                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
                 return;
             }
-            list.innerHTML = state.workers.map(w => `
-                <div class="card">
-                    <div class="card-title">${w.name}</div>
+            const html = state.workers.map(w => `
+                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
                     ${(state.requirements[w.id] || []).length > 0 ? `
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0dcd5;">
                             ${(state.requirements[w.id] || []).map(req => `
                                 <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 3px; margin-bottom: 4px; font-size: 13px;">
                                     <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
-                                    <button style="background: none; border: none; color: #e24b4a; cursor: pointer;" onclick="removeRequirement(${w.id}, ${req.id})">✕</button>
+                                    <button style="background: none; border: none; color: #e24b4a; cursor: pointer; padding: 0; font-size: 12px;" onclick="removeRequirement(${w.id}, ${req.id})">✕</button>
                                 </div>
                             `).join('')}
                         </div>
                     ` : ''}
-                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%;">
+                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%; padding: 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
                         <option value="">בחר דרישה...</option>
                         ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
                 </div>
             `).join('');
+            list.innerHTML = html;
+            list.style.display = 'grid';
         }
 
         function renderConstraints() {
             const list = document.getElementById('constraintsList');
             if (!state.workers.length) {
-                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
                 return;
             }
-            list.innerHTML = state.workers.map(w => {
+            const html = state.workers.map(w => {
                 const c = state.constraints[w.id] || { min: 3, max: 6 };
                 return `
-                    <div class="card">
-                        <div class="card-title">${w.name}</div>
+                    <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px;">
+                        <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">${w.name}</div>
                         <div style="display: flex; gap: 16px; flex-wrap: wrap;">
                             <label style="font-size: 13px;">
-                                מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px !important;">
+                                מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px; padding: 4px 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
                             </label>
                             <label style="font-size: 13px;">
-                                מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px !important;">
+                                מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px; padding: 4px 8px; border: 1px solid #e0dcd5; border-radius: 3px;">
                             </label>
                         </div>
                     </div>
                 `;
             }).join('');
+            list.innerHTML = html;
+            list.style.display = 'grid';
         }
 
         // Generate Schedule
