@@ -5,407 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מנהל סידור משמרות</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f9f7f4; color: #2c2a27; direction: rtl; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 28px; font-weight: 500; margin-bottom: 24px; }
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f9f7f4;
-            color: #2c2a27;
-            direction: rtl;
-        }
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e0dcd5; flex-wrap: wrap; }
+        .tab-button { padding: 12px 16px; background: transparent; color: #5f5e5a; border: none; cursor: pointer; font-weight: 500; font-size: 14px; }
+        .tab-button.active { background: #d97757; color: white; font-weight: 600; }
         
-        #root {
-            min-height: 100vh;
-        }
+        .tab-content { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .tab-content.active { display: block; }
         
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .form-group { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        input, select { padding: 10px 12px; border: 1px solid #e0dcd5; border-radius: 4px; font-size: 14px; background: white; color: #2c2a27; }
+        input[type="text"] { flex: 1; min-width: 200px; }
         
-        h1 {
-            font-size: 28px;
-            font-weight: 500;
-            margin-bottom: 24px;
-            color: #2c2a27;
-        }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px; }
+        .btn-primary { background: #7f77dd; color: white; }
+        .btn-success { background: #639922; color: white; }
+        .btn-danger { background: #e24b4a; color: white; padding: 4px 12px; font-size: 13px; }
         
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid #e0dcd5;
-            flex-wrap: wrap;
-        }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+        .grid-large { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
         
-        .tab-button {
-            padding: 12px 16px;
-            background: transparent;
-            color: #5f5e5a;
-            border: none;
-            cursor: pointer;
-            font-weight: 500;
-            border-radius: 4px 4px 0 0;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
+        .card { padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; }
+        .card-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
         
-        .tab-button.active {
-            background: #d97757;
-            color: white;
-            font-weight: 600;
-        }
+        .shift-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .shift-btn { padding: 6px 8px; border: 1px solid #e0dcd5; background: white; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500; }
+        .shift-btn.blocked { background: #e24b4a; color: white; border-color: #e24b4a; }
         
-        .tab-button:hover:not(.active) {
-            background: rgba(217, 119, 87, 0.1);
-        }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px; border: 1px solid #e0dcd5; text-align: center; }
+        th { font-weight: 600; background: #f9f7f4; }
         
-        .tab-content {
-            display: none;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            animation: fadeIn 0.2s ease;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .form-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        input[type="text"],
-        input[type="number"],
-        select {
-            padding: 10px 12px;
-            border: 1px solid #e0dcd5;
-            border-radius: 4px;
-            font-size: 14px;
-            background: white;
-            color: #2c2a27;
-        }
-        
-        input[type="text"] {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-primary {
-            background: #7f77dd;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #6d68c4;
-        }
-        
-        .btn-success {
-            background: #639922;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #517a1a;
-        }
-        
-        .btn-danger {
-            background: #e24b4a;
-            color: white;
-            padding: 4px 12px;
-            font-size: 13px;
-        }
-        
-        .btn-danger:hover {
-            background: #c03c3b;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 12px;
-        }
-        
-        .grid-large {
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        }
-        
-        .card {
-            padding: 16px;
-            background: #f9f7f4;
-            border: 1px solid #e0dcd5;
-            border-radius: 6px;
-        }
-        
-        .card-header {
-            font-weight: 500;
-            font-size: 15px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .card-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 12px;
-            color: #2c2a27;
-        }
-        
-        .shift-buttons {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-        
-        .shift-btn {
-            padding: 6px 8px;
-            border: 1px solid #e0dcd5;
-            background: white;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        
-        .shift-btn.blocked {
-            background: #e24b4a;
-            color: white;
-            border-color: #e24b4a;
-        }
-        
-        .shift-btn:hover {
-            border-color: #d97757;
-        }
-        
-        .table-container {
-            overflow-x: auto;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        
-        th {
-            padding: 12px;
-            border: 1px solid #e0dcd5;
-            text-align: center;
-            font-weight: 600;
-            background: #f9f7f4;
-        }
-        
-        td {
-            padding: 12px;
-            border: 1px solid #e0dcd5;
-            text-align: center;
-        }
-        
-        .worker-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: #d97757;
-            color: white;
-            border-radius: 3px;
-            margin-bottom: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        
-        .requirement-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
-            background: white;
-            border-radius: 3px;
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-        
-        .requirement-item button {
-            background: none;
-            border: none;
-            color: #e24b4a;
-            cursor: pointer;
-            padding: 0;
-            font-size: 12px;
-        }
-        
-        .constraint-row {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 16px;
-            align-items: center;
-        }
-        
-        .constraint-inputs {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        
-        .constraint-inputs label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-        }
-        
-        .constraint-inputs input {
-            width: 50px !important;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-            color: #5f5e5a;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #5f5e5a;
-            grid-column: 1 / -1;
-        }
-
-        .status {
-            margin-top: 20px;
-            padding: 12px;
-            background: #e6f1fb;
-            border-left: 4px solid #378add;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #185fa5;
-        }
-
-        .status.error {
-            background: #fcebeb;
-            border-left-color: #e24b4a;
-            color: #a32d2d;
-        }
-        
-        @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .grid-large {
-                grid-template-columns: 1fr;
-            }
-            
-            .shift-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .tabs {
-                overflow-x: auto;
-            }
-        }
+        .worker-badge { display: inline-block; padding: 4px 8px; background: #d97757; color: white; border-radius: 3px; margin-bottom: 4px; font-size: 12px; font-weight: 500; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #5f5e5a; grid-column: 1 / -1; }
+        .status { margin-top: 20px; padding: 12px; background: #e6f1fb; border-left: 4px solid #378add; border-radius: 4px; font-size: 13px; color: #185fa5; }
+        .status.error { background: #fcebeb; border-left-color: #e24b4a; color: #a32d2d; }
     </style>
 </head>
 <body>
-    <div id="root">
-        <div class="container">
-            <h1>📋 מנהל סידור משמרות</h1>
-            
-            <!-- Tabs Navigation -->
-            <div class="tabs">
-                <button class="tab-button active" data-tab="workers">👥 עובדים</button>
-                <button class="tab-button" data-tab="blocks">🚫 חסימות</button>
-                <button class="tab-button" data-tab="requirements">📝 דרישות</button>
-                <button class="tab-button" data-tab="constraints">⚙️ הגדרות</button>
-                <button class="tab-button" data-tab="schedule">✅ סידור סופי</button>
-            </div>
-
-            <!-- Workers Tab -->
-            <div class="tab-content active" data-tab="workers">
-                <div class="form-group">
-                    <input type="text" id="newWorkerName" placeholder="שם עובד חדש...">
-                    <button class="btn-primary" id="addWorkerBtn">הוסף עובד</button>
-                </div>
-                <div class="grid" id="workersList"></div>
-            </div>
-
-            <!-- Blocks Tab -->
-            <div class="tab-content" data-tab="blocks">
-                <div class="grid grid-large" id="blocksList"></div>
-            </div>
-
-            <!-- Requirements Tab -->
-            <div class="tab-content" data-tab="requirements">
-                <div class="grid grid-large" id="requirementsList"></div>
-            </div>
-
-            <!-- Constraints Tab -->
-            <div class="tab-content" data-tab="constraints">
-                <div class="grid grid-large" id="constraintsList"></div>
-            </div>
-
-            <!-- Schedule Tab -->
-            <div class="tab-content" data-tab="schedule">
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        אנשים בכל משמרת:
-                        <input type="number" id="peoplePerShift" value="3" min="1" max="10" style="width: 60px;">
-                    </label>
-                    <button class="btn-success" id="generateScheduleBtn">יצור סידור אוטומטי</button>
-                </div>
-                <div class="table-container" id="scheduleView"></div>
-            </div>
-
-            <div id="statusMessage"></div>
+    <div class="container">
+        <h1>📋 מנהל סידור משמרות</h1>
+        
+        <div class="tabs">
+            <button class="tab-button active" data-tab="workers">👥 עובדים</button>
+            <button class="tab-button" data-tab="blocks">🚫 חסימות</button>
+            <button class="tab-button" data-tab="requirements">📝 דרישות</button>
+            <button class="tab-button" data-tab="constraints">⚙️ הגדרות</button>
+            <button class="tab-button" data-tab="schedule">✅ סידור סופי</button>
         </div>
+
+        <!-- Workers Tab -->
+        <div class="tab-content active" data-tab="workers">
+            <div class="form-group">
+                <input type="text" id="newWorkerName" placeholder="שם עובד חדש...">
+                <button class="btn-primary" id="addWorkerBtn">הוסף עובד</button>
+            </div>
+            <div class="grid" id="workersList"></div>
+        </div>
+
+        <!-- Blocks Tab -->
+        <div class="tab-content" data-tab="blocks">
+            <div class="grid grid-large" id="blocksList"></div>
+        </div>
+
+        <!-- Requirements Tab -->
+        <div class="tab-content" data-tab="requirements">
+            <div class="grid grid-large" id="requirementsList"></div>
+        </div>
+
+        <!-- Constraints Tab -->
+        <div class="tab-content" data-tab="constraints">
+            <div class="grid grid-large" id="constraintsList"></div>
+        </div>
+
+        <!-- Schedule Tab -->
+        <div class="tab-content" data-tab="schedule">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    אנשים בכל משמרת:
+                    <input type="number" id="peoplePerShift" value="3" min="1" max="10" style="width: 60px;">
+                </label>
+                <button class="btn-success" id="generateScheduleBtn">יצור סידור אוטומטי</button>
+            </div>
+            <div class="table-container" id="scheduleView"></div>
+        </div>
+
+        <div id="statusMessage"></div>
     </div>
 
-    <!-- Firebase SDK - Compat Version (works with global objects) -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
-    
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBJQQrGZlggApRD2pyLr_GrXxWL0Vg4LoE",
-            authDomain: "sidorh.firebaseapp.com",
-            databaseURL: "https://sidorh-default-rtdb.europe-west1.firebaseio.com",
-            projectId: "sidorh",
-            storageBucket: "sidorh.firebasestorage.app",
-            messagingSenderId: "34411377515",
-            appId: "1:34411377515:web:8ccf4db8867b2fd7fcd22e"
-        };
-
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
         // Constants
         const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
         const SHIFTS = [
@@ -413,7 +106,6 @@
             { id: 'evening', name: 'ערב', time: '14:00-22:00' },
             { id: 'night', name: 'לילה', time: '22:00-06:00' }
         ];
-
         const REQUIREMENT_TYPES = [
             { value: 'shabbat', label: '🕯️ שבת ערב וליל שבת' },
             { value: 'friday-night', label: '🌙 ערב שישי לילה' },
@@ -422,7 +114,7 @@
             { value: 'morning-only', label: '🌅 בוקר בלבד' }
         ];
 
-        // State Management
+        // State
         const state = {
             workers: [],
             blocks: {},
@@ -432,313 +124,114 @@
             peoplePerShift: 3
         };
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM Loaded, setting up...');
-            setupEventListeners();
-            loadAllData();
+        // localStorage helpers
+        function saveState() {
+            localStorage.setItem('shift-workers', JSON.stringify(state.workers));
+            localStorage.setItem('shift-blocks', JSON.stringify(state.blocks));
+            localStorage.setItem('shift-constraints', JSON.stringify(state.constraints));
+            localStorage.setItem('shift-requirements', JSON.stringify(state.requirements));
+            console.log('✅ נתונים שמורים');
+        }
+
+        function loadState() {
+            state.workers = JSON.parse(localStorage.getItem('shift-workers')) || [];
+            state.blocks = JSON.parse(localStorage.getItem('shift-blocks')) || {};
+            state.constraints = JSON.parse(localStorage.getItem('shift-constraints')) || {};
+            state.requirements = JSON.parse(localStorage.getItem('shift-requirements')) || {};
+            console.log('✅ נתונים טענו');
+        }
+
+        // Status message
+        function showStatus(message, isError = false) {
+            const div = document.getElementById('statusMessage');
+            div.innerHTML = `<div class="status ${isError ? 'error' : ''}">${message}</div>`;
+            setTimeout(() => { div.innerHTML = ''; }, 5000);
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.getAttribute('data-tab');
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            });
         });
 
-        // Save to Firebase OR LocalStorage if Firebase fails
-        function saveToDatabase(key, data) {
-            try {
-                // Try Firebase first
-                db.ref(`shift-manager/${key}`).set(data, function(error) {
-                    if (error) {
-                        console.warn('Firebase error, using localStorage:', error.message);
-                        localStorage.setItem(`firebase-${key}`, JSON.stringify(data));
-                    } else {
-                        console.log(`${key} saved to Firebase`);
-                        localStorage.removeItem(`firebase-${key}`); // Clear backup
-                    }
-                });
-            } catch (error) {
-                console.error('Save error:', error);
-                localStorage.setItem(`firebase-${key}`, JSON.stringify(data));
-            }
-        }
-
-        // Load from Firebase OR LocalStorage
-        function loadFromDatabase(key, callback) {
-            try {
-                db.ref(`shift-manager/${key}`).once('value', function(snapshot) {
-                    let data = snapshot.val();
-                    if (data) {
-                        console.log(`Loaded ${key} from Firebase`);
-                        callback(data);
-                    } else {
-                        // Try localStorage
-                        const stored = localStorage.getItem(`firebase-${key}`);
-                        if (stored) {
-                            console.log(`Loaded ${key} from localStorage`);
-                            callback(JSON.parse(stored));
-                        } else {
-                            callback(null);
-                        }
-                    }
-                }, function(error) {
-                    console.warn(`Firebase error loading ${key}, trying localStorage:`, error.message);
-                    const stored = localStorage.getItem(`firebase-${key}`);
-                    if (stored) {
-                        callback(JSON.parse(stored));
-                    } else {
-                        callback(null);
-                    }
-                });
-            } catch (error) {
-                console.error('Load error:', error);
-                const stored = localStorage.getItem(`firebase-${key}`);
-                callback(stored ? JSON.parse(stored) : null);
-            }
-        }
-
-        // Setup Event Listeners
-        function setupEventListeners() {
-            console.log('Setting up event listeners...');
-            
-            // Tab switching
-            const buttons = document.querySelectorAll('.tab-button');
-            console.log('Found tab buttons:', buttons.length);
-            
-            buttons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const tabName = this.getAttribute('data-tab');
-                    console.log('Switching to tab:', tabName);
-                    switchTab(tabName);
-                });
-            });
-
-            // Add worker button
-            const addBtn = document.getElementById('addWorkerBtn');
-            if (addBtn) {
-                addBtn.addEventListener('click', addWorker);
-            }
-            
-            const nameInput = document.getElementById('newWorkerName');
-            if (nameInput) {
-                nameInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') addWorker();
-                });
-            }
-
-            // Generate schedule
-            const scheduleBtn = document.getElementById('generateScheduleBtn');
-            if (scheduleBtn) {
-                scheduleBtn.addEventListener('click', generateSchedule);
-            }
-            
-            const peopleInput = document.getElementById('peoplePerShift');
-            if (peopleInput) {
-                peopleInput.addEventListener('change', (e) => {
-                    state.peoplePerShift = parseInt(e.target.value);
-                });
-            }
-
-            console.log('Event listeners setup complete');
-        }
-
-        function switchTab(tabName) {
-            console.log('switchTab called with:', tabName);
-            
-            // Update active tab button
-            const buttons = document.querySelectorAll('.tab-button');
-            buttons.forEach(btn => {
-                const btnTab = btn.getAttribute('data-tab');
-                if (btnTab === tabName) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-
-            // Update active tab content
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => {
-                const contentTab = content.getAttribute('data-tab');
-                if (contentTab === tabName) {
-                    content.classList.add('active');
-                } else {
-                    content.classList.remove('active');
-                }
-            });
-        }
-
-        // Load all data from Firebase or LocalStorage
-        function loadAllData() {
-            try {
-                console.log('Loading data...');
-                showStatus('⏳ טוען נתונים...');
-                
-                let loaded = 0;
-                const totalToLoad = 4;
-                
-                function checkFinished() {
-                    loaded++;
-                    if (loaded === totalToLoad) {
-                        console.log('All data loaded');
-                        showStatus('✅ הנתונים נטענו בהצלחה');
-                        renderAllTabs();
-                    }
-                }
-                
-                // Load workers
-                loadFromDatabase('workers', function(data) {
-                    state.workers = data || [];
-                    console.log('Loaded workers:', state.workers);
-                    checkFinished();
-                });
-                
-                // Load blocks
-                loadFromDatabase('blocks', function(data) {
-                    state.blocks = data || {};
-                    console.log('Loaded blocks:', state.blocks);
-                    checkFinished();
-                });
-                
-                // Load constraints
-                loadFromDatabase('constraints', function(data) {
-                    state.constraints = data || {};
-                    console.log('Loaded constraints:', state.constraints);
-                    checkFinished();
-                });
-                
-                // Load requirements
-                loadFromDatabase('requirements', function(data) {
-                    state.requirements = data || {};
-                    console.log('Loaded requirements:', state.requirements);
-                    checkFinished();
-                });
-                
-            } catch (error) {
-                console.error('Error loading data:', error);
-                showStatus('❌ שגיאה בטעינת הנתונים: ' + error.message, true);
-            }
-        }
-
         // Add Worker
-        function addWorker() {
+        document.getElementById('addWorkerBtn').addEventListener('click', () => {
             const input = document.getElementById('newWorkerName');
-            if (!input.value.trim()) {
-                alert('אנא הוסף שם עובד');
-                return;
-            }
+            if (!input.value.trim()) return;
 
-            try {
-                console.log('Adding worker:', input.value);
-                
-                const worker = {
-                    id: Date.now(),
-                    name: input.value.trim(),
-                    createdAt: new Date().toISOString()
-                };
+            const worker = {
+                id: Date.now(),
+                name: input.value.trim()
+            };
 
-                state.workers.push(worker);
-                state.constraints[worker.id] = { min: 3, max: 6 };
-                state.requirements[worker.id] = [];
-                state.blocks[worker.id] = {};
+            state.workers.push(worker);
+            state.constraints[worker.id] = { min: 3, max: 6 };
+            state.requirements[worker.id] = [];
+            state.blocks[worker.id] = {};
 
-                console.log('Saving to database...');
-                console.log('Workers:', state.workers);
+            input.value = '';
+            saveState();
+            renderAll();
+            showStatus('✅ עובד נוסף: ' + worker.name);
+        });
 
-                // Save all data
-                saveToDatabase('workers', state.workers);
-                saveToDatabase('constraints', state.constraints);
-                saveToDatabase('requirements', state.requirements);
-
-                input.value = '';
-                renderAllTabs();
-                showStatus('✅ עובד נוסף בהצלחה: ' + worker.name);
-
-            } catch (error) {
-                console.error('Error in addWorker:', error);
-                showStatus('❌ שגיאה: ' + error.message, true);
-            }
-        }
+        document.getElementById('newWorkerName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('addWorkerBtn').click();
+        });
 
         // Remove Worker
-        function removeWorker(workerId) {
-            if (!confirm('בטוח שרוצה למחוק עובד זה?')) return;
-            
-            try {
-                state.workers = state.workers.filter(w => w.id !== workerId);
-                delete state.blocks[workerId];
-                delete state.constraints[workerId];
-                delete state.requirements[workerId];
-
-                saveToDatabase('workers', state.workers);
-                saveToDatabase('blocks', state.blocks);
-                saveToDatabase('constraints', state.constraints);
-                saveToDatabase('requirements', state.requirements);
-                
-                renderAllTabs();
-                showStatus('✅ עובד נמחק בהצלחה');
-            } catch (error) {
-                console.error('Error removing worker:', error);
-                showStatus('❌ שגיאה במחיקת עובד', true);
-            }
-        }
+        window.removeWorker = function(id) {
+            if (!confirm('למחוק עובד?')) return;
+            state.workers = state.workers.filter(w => w.id !== id);
+            delete state.blocks[id];
+            delete state.constraints[id];
+            delete state.requirements[id];
+            saveState();
+            renderAll();
+            showStatus('✅ עובד נמחק');
+        };
 
         // Toggle Block
-        function toggleBlock(workerId, dayIdx, shiftId) {
-            try {
-                if (!state.blocks[workerId]) state.blocks[workerId] = {};
-                const key = `${dayIdx}-${shiftId}`;
-                state.blocks[workerId][key] = !state.blocks[workerId][key];
-                
-                saveToDatabase('blocks', state.blocks);
-                renderAllTabs();
-            } catch (error) {
-                console.error('Error toggling block:', error);
-            }
-        }
+        window.toggleBlock = function(id, day, shift) {
+            if (!state.blocks[id]) state.blocks[id] = {};
+            const key = `${day}-${shift}`;
+            state.blocks[id][key] = !state.blocks[id][key];
+            saveState();
+            renderAll();
+        };
 
         // Update Constraint
-        function updateConstraint(workerId, field, value) {
-            try {
-                if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
-                state.constraints[workerId][field] = parseInt(value);
-                
-                saveToDatabase('constraints', state.constraints);
-            } catch (error) {
-                console.error('Error updating constraint:', error);
-            }
-        }
+        window.updateConstraint = function(id, field, value) {
+            if (!state.constraints[id]) state.constraints[id] = { min: 3, max: 6 };
+            state.constraints[id][field] = parseInt(value);
+            saveState();
+        };
 
         // Add Requirement
-        function addRequirement(workerId, type) {
-            try {
-                if (!state.requirements[workerId]) state.requirements[workerId] = [];
-                state.requirements[workerId].push({
-                    id: Date.now(),
-                    type: type
-                });
-                
-                saveToDatabase('requirements', state.requirements);
-                renderAllTabs();
-                showStatus('✅ דרישה נוספה בהצלחה');
-            } catch (error) {
-                console.error('Error adding requirement:', error);
-                showStatus('❌ שגיאה בהוספת דרישה', true);
-            }
-        }
+        window.addRequirement = function(id, type) {
+            if (!state.requirements[id]) state.requirements[id] = [];
+            state.requirements[id].push({ id: Date.now(), type });
+            saveState();
+            renderAll();
+            showStatus('✅ דרישה נוספה');
+        };
 
         // Remove Requirement
-        function removeRequirement(workerId, reqId) {
-            try {
-                if (state.requirements[workerId]) {
-                    state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
-                }
-                
-                saveToDatabase('requirements', state.requirements);
-                renderAllTabs();
-            } catch (error) {
-                console.error('Error removing requirement:', error);
+        window.removeRequirement = function(id, reqId) {
+            if (state.requirements[id]) {
+                state.requirements[id] = state.requirements[id].filter(r => r.id !== reqId);
             }
-        }
+            saveState();
+            renderAll();
+        };
 
-        // Render Functions
-        function renderAllTabs() {
+        // Render functions
+        function renderAll() {
             renderWorkers();
             renderBlocks();
             renderRequirements();
@@ -747,16 +240,15 @@
 
         function renderWorkers() {
             const list = document.getElementById('workersList');
-            if (state.workers.length === 0) {
-                list.innerHTML = '<div class="empty-state">לא נוספו עובדים עדיין</div>';
+            if (!state.workers.length) {
+                list.innerHTML = '<div class="empty-state">אין עובדים</div>';
                 return;
             }
-
-            list.innerHTML = state.workers.map(worker => `
+            list.innerHTML = state.workers.map(w => `
                 <div class="card">
-                    <div class="card-header">
-                        <span>${worker.name}</span>
-                        <button class="btn-danger" onclick="removeWorker(${worker.id})">מחק</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${w.name}</span>
+                        <button class="btn-danger" onclick="removeWorker(${w.id})">מחק</button>
                     </div>
                 </div>
             `).join('');
@@ -764,25 +256,19 @@
 
         function renderBlocks() {
             const list = document.getElementById('blocksList');
-            if (state.workers.length === 0) {
+            if (!state.workers.length) {
                 list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
-
-            list.innerHTML = state.workers.map(worker => `
+            list.innerHTML = state.workers.map(w => `
                 <div class="card">
-                    <div class="card-title">${worker.name}</div>
+                    <div class="card-title">${w.name}</div>
                     <div class="shift-buttons">
                         ${DAYS.flatMap((day, dayIdx) => 
                             SHIFTS.map(shift => {
                                 const key = `${dayIdx}-${shift.id}`;
-                                const isBlocked = state.blocks[worker.id]?.[key];
-                                return `
-                                    <button class="shift-btn ${isBlocked ? 'blocked' : ''}" 
-                                            onclick="toggleBlock(${worker.id}, ${dayIdx}, '${shift.id}')">
-                                        ${day.slice(0, 1)}${shift.name.slice(0, 1)}
-                                    </button>
-                                `;
+                                const blocked = state.blocks[w.id]?.[key];
+                                return `<button class="shift-btn ${blocked ? 'blocked' : ''}" onclick="toggleBlock(${w.id}, ${dayIdx}, '${shift.id}')">${day.slice(0,1)}${shift.name.slice(0,1)}</button>`;
                             })
                         ).join('')}
                     </div>
@@ -792,25 +278,24 @@
 
         function renderRequirements() {
             const list = document.getElementById('requirementsList');
-            if (state.workers.length === 0) {
+            if (!state.workers.length) {
                 list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
-
-            list.innerHTML = state.workers.map(worker => `
+            list.innerHTML = state.workers.map(w => `
                 <div class="card">
-                    <div class="card-title">${worker.name}</div>
-                    ${(state.requirements[worker.id] || []).length > 0 ? `
+                    <div class="card-title">${w.name}</div>
+                    ${(state.requirements[w.id] || []).length > 0 ? `
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0dcd5;">
-                            ${(state.requirements[worker.id] || []).map(req => `
-                                <div class="requirement-item">
+                            ${(state.requirements[w.id] || []).map(req => `
+                                <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 3px; margin-bottom: 4px; font-size: 13px;">
                                     <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
-                                    <button onclick="removeRequirement(${worker.id}, ${req.id})">✕</button>
+                                    <button style="background: none; border: none; color: #e24b4a; cursor: pointer;" onclick="removeRequirement(${w.id}, ${req.id})">✕</button>
                                 </div>
                             `).join('')}
                         </div>
                     ` : ''}
-                    <select onchange="if (this.value) addRequirement(${worker.id}, this.value); this.value = '';" style="width: 100%;">
+                    <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%;">
                         <option value="">בחר דרישה...</option>
                         ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
@@ -820,26 +305,21 @@
 
         function renderConstraints() {
             const list = document.getElementById('constraintsList');
-            if (state.workers.length === 0) {
+            if (!state.workers.length) {
                 list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
-
-            list.innerHTML = state.workers.map(worker => {
-                const constraint = state.constraints[worker.id] || { min: 3, max: 6 };
+            list.innerHTML = state.workers.map(w => {
+                const c = state.constraints[w.id] || { min: 3, max: 6 };
                 return `
                     <div class="card">
-                        <div class="card-title">${worker.name}</div>
-                        <div class="constraint-inputs">
-                            <label>
-                                מינ:
-                                <input type="number" value="${constraint.min}" min="1" max="7" 
-                                       onchange="updateConstraint(${worker.id}, 'min', this.value)">
+                        <div class="card-title">${w.name}</div>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <label style="font-size: 13px;">
+                                מינ: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 50px !important;">
                             </label>
-                            <label>
-                                מקס:
-                                <input type="number" value="${constraint.max}" min="1" max="7"
-                                       onchange="updateConstraint(${worker.id}, 'max', this.value)">
+                            <label style="font-size: 13px;">
+                                מקס: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 50px !important;">
                             </label>
                         </div>
                     </div>
@@ -848,98 +328,68 @@
         }
 
         // Generate Schedule
-        function generateSchedule() {
-            try {
-                console.log('Generating schedule...');
-                const schedule = {};
-                const workerShifts = {};
-
-                // Initialize
-                for (let day = 0; day < 7; day++) {
-                    for (let shift of SHIFTS) {
-                        schedule[`${day}-${shift.id}`] = [];
-                    }
-                }
-
-                state.workers.forEach(w => {
-                    workerShifts[w.id] = 0;
-                });
-
-                // Smart allocation
-                for (let day = 0; day < 7; day++) {
-                    for (let shift of SHIFTS) {
-                        const key = `${day}-${shift.id}`;
-
-                        let candidates = state.workers.filter(w => {
-                            const isBlocked = state.blocks[w.id]?.[key];
-                            const constraint = state.constraints[w.id] || { min: 3, max: 6 };
-                            const shiftsCount = workerShifts[w.id] || 0;
-                            
-                            return !isBlocked && shiftsCount < constraint.max;
-                        });
-
-                        // Sort by load balancing
-                        candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
-
-                        // Assign
-                        for (let i = 0; i < state.peoplePerShift && i < candidates.length; i++) {
-                            schedule[key].push(candidates[i].id);
-                            workerShifts[candidates[i].id]++;
-                        }
-                    }
-                }
-
-                state.schedule = schedule;
-                renderScheduleTable();
-                showStatus('✅ סידור נוצר בהצלחה!');
-            } catch (error) {
-                console.error('Error generating schedule:', error);
-                showStatus('❌ שגיאה ביצירת סידור', true);
-            }
-        }
-
-        function renderScheduleTable() {
-            if (!state.schedule) return;
-
-            const view = document.getElementById('scheduleView');
+        document.getElementById('generateScheduleBtn').addEventListener('click', () => {
+            const peoplePerShift = parseInt(document.getElementById('peoplePerShift').value) || 3;
+            state.peoplePerShift = peoplePerShift;
             
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>משמרת</th>
-                            ${DAYS.map(day => `<th>${day}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            const schedule = {};
+            const workerShifts = {};
 
+            // Initialize
+            for (let day = 0; day < 7; day++) {
+                for (let shift of SHIFTS) {
+                    schedule[`${day}-${shift.id}`] = [];
+                }
+            }
+            state.workers.forEach(w => { workerShifts[w.id] = 0; });
+
+            // Smart allocation
+            for (let day = 0; day < 7; day++) {
+                for (let shift of SHIFTS) {
+                    const key = `${day}-${shift.id}`;
+                    let candidates = state.workers.filter(w => {
+                        const blocked = state.blocks[w.id]?.[key];
+                        const constraint = state.constraints[w.id] || { min: 3, max: 6 };
+                        return !blocked && (workerShifts[w.id] || 0) < constraint.max;
+                    });
+
+                    candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
+
+                    for (let i = 0; i < peoplePerShift && i < candidates.length; i++) {
+                        schedule[key].push(candidates[i].id);
+                        workerShifts[candidates[i].id]++;
+                    }
+                }
+            }
+
+            state.schedule = schedule;
+            renderSchedule();
+            showStatus('✅ סידור נוצר!');
+        });
+
+        function renderSchedule() {
+            if (!state.schedule) return;
+            const view = document.getElementById('scheduleView');
+            let html = `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
+            
             SHIFTS.forEach(shift => {
                 html += `<tr><td style="font-weight: 600; background: #f9f7f4;">${shift.name}</td>`;
-                
                 for (let day = 0; day < 7; day++) {
                     const key = `${day}-${shift.id}`;
                     const workers = state.schedule[key] || [];
-                    html += `<td>`;
-                    workers.forEach(workerId => {
-                        const worker = state.workers.find(w => w.id === workerId);
-                        html += `<div class="worker-badge">${worker?.name}</div>`;
-                    });
-                    html += `</td>`;
+                    html += `<td>${workers.map(wid => `<div class="worker-badge">${state.workers.find(w => w.id === wid)?.name}</div>`).join('')}</td>`;
                 }
-                
                 html += `</tr>`;
             });
-
-            html += `
-                    </tbody>
-                </table>
-            `;
-
+            
+            html += `</tbody></table>`;
             view.innerHTML = html;
         }
 
-        console.log('Script loaded successfully');
+        // Initialize
+        loadState();
+        renderAll();
+        showStatus('✅ אפליקציה טוענת');
     </script>
 </body>
 </html>
