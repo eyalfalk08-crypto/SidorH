@@ -243,10 +243,10 @@
 
         function renderWorkers() {
             const list = document.getElementById('workersList');
-            console.log('renderWorkers:', state.workers.length, 'list element:', list);
+            console.log('renderWorkers:', state.workers.length);
             if (!state.workers.length) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">אין עובדים</div>';
-                console.log('No workers, showing empty state');
+                list.style.display = 'block';
                 return;
             }
             const html = state.workers.map(w => `
@@ -257,17 +257,16 @@
                     </div>
                 </div>
             `).join('');
-            console.log('HTML created, length:', html.length);
-            console.log('Setting innerHTML...');
             list.innerHTML = html;
-            list.style.display = 'block';
-            console.log('innerHTML set. Content exists:', list.children.length > 0);
+            list.style.cssText = 'display: grid !important; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;';
+            console.log('renderWorkers done, height:', list.offsetHeight);
         }
 
         function renderBlocks() {
             const list = document.getElementById('blocksList');
             if (!state.workers.length) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.style.display = 'block';
                 return;
             }
             const html = state.workers.map(w => `
@@ -285,13 +284,14 @@
                 </div>
             `).join('');
             list.innerHTML = html;
-            list.style.display = 'grid';
+            list.style.cssText = 'display: grid !important; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 12px;';
         }
 
         function renderRequirements() {
             const list = document.getElementById('requirementsList');
             if (!state.workers.length) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.style.display = 'block';
                 return;
             }
             const html = state.workers.map(w => `
@@ -314,13 +314,14 @@
                 </div>
             `).join('');
             list.innerHTML = html;
-            list.style.display = 'grid';
+            list.style.cssText = 'display: grid !important; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 12px;';
         }
 
         function renderConstraints() {
             const list = document.getElementById('constraintsList');
             if (!state.workers.length) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">הוסף עובדים קודם</div>';
+                list.style.display = 'block';
                 return;
             }
             const html = state.workers.map(w => {
@@ -340,7 +341,7 @@
                 `;
             }).join('');
             list.innerHTML = html;
-            list.style.display = 'grid';
+            list.style.cssText = 'display: grid !important; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 12px;';
         }
 
         // Generate Schedule
