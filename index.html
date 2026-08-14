@@ -156,6 +156,9 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+                
+                // Re-render when switching tabs
+                renderAll();
             });
         });
 
