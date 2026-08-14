@@ -439,12 +439,57 @@
             loadAllData();
         });
 
-        function showStatus(message, isError = false) {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.innerHTML = `<div class="status ${isError ? 'error' : ''}">${message}</div>`;
-            setTimeout(() => {
-                statusDiv.innerHTML = '';
-            }, 5000);
+        // Save to Firebase OR LocalStorage if Firebase fails
+        function saveToDatabase(key, data) {
+            try {
+                // Try Firebase first
+                db.ref(`shift-manager/${key}`).set(data, function(error) {
+                    if (error) {
+                        console.warn('Firebase error, using localStorage:', error.message);
+                        localStorage.setItem(`firebase-${key}`, JSON.stringify(data));
+                    } else {
+                        console.log(`${key} saved to Firebase`);
+                        localStorage.removeItem(`firebase-${key}`); // Clear backup
+                    }
+                });
+            } catch (error) {
+                console.error('Save error:', error);
+                localStorage.setItem(`firebase-${key}`, JSON.stringify(data));
+            }
+        }
+
+        // Load from Firebase OR LocalStorage
+        function loadFromDatabase(key, callback) {
+            try {
+                db.ref(`shift-manager/${key}`).once('value', function(snapshot) {
+                    let data = snapshot.val();
+                    if (data) {
+                        console.log(`Loaded ${key} from Firebase`);
+                        callback(data);
+                    } else {
+                        // Try localStorage
+                        const stored = localStorage.getItem(`firebase-${key}`);
+                        if (stored) {
+                            console.log(`Loaded ${key} from localStorage`);
+                            callback(JSON.parse(stored));
+                        } else {
+                            callback(null);
+                        }
+                    }
+                }, function(error) {
+                    console.warn(`Firebase error loading ${key}, trying localStorage:`, error.message);
+                    const stored = localStorage.getItem(`firebase-${key}`);
+                    if (stored) {
+                        callback(JSON.parse(stored));
+                    } else {
+                        callback(null);
+                    }
+                });
+            } catch (error) {
+                console.error('Load error:', error);
+                const stored = localStorage.getItem(`firebase-${key}`);
+                callback(stored ? JSON.parse(stored) : null);
+            }
         }
 
         // Setup Event Listeners
@@ -519,52 +564,51 @@
             });
         }
 
-        // Load all data from Firebase
+        // Load all data from Firebase or LocalStorage
         function loadAllData() {
             try {
-                console.log('Loading data from Firebase...');
+                console.log('Loading data...');
                 showStatus('⏳ טוען נתונים...');
                 
                 let loaded = 0;
                 const totalToLoad = 4;
                 
-                // Load workers
-                db.ref('shift-manager/workers').once('value', function(snapshot) {
-                    state.workers = snapshot.val() || [];
-                    console.log('Loaded workers:', state.workers);
+                function checkFinished() {
                     loaded++;
-                    if (loaded === totalToLoad) finishLoading();
+                    if (loaded === totalToLoad) {
+                        console.log('All data loaded');
+                        showStatus('✅ הנתונים נטענו בהצלחה');
+                        renderAllTabs();
+                    }
+                }
+                
+                // Load workers
+                loadFromDatabase('workers', function(data) {
+                    state.workers = data || [];
+                    console.log('Loaded workers:', state.workers);
+                    checkFinished();
                 });
                 
                 // Load blocks
-                db.ref('shift-manager/blocks').once('value', function(snapshot) {
-                    state.blocks = snapshot.val() || {};
+                loadFromDatabase('blocks', function(data) {
+                    state.blocks = data || {};
                     console.log('Loaded blocks:', state.blocks);
-                    loaded++;
-                    if (loaded === totalToLoad) finishLoading();
+                    checkFinished();
                 });
                 
                 // Load constraints
-                db.ref('shift-manager/constraints').once('value', function(snapshot) {
-                    state.constraints = snapshot.val() || {};
+                loadFromDatabase('constraints', function(data) {
+                    state.constraints = data || {};
                     console.log('Loaded constraints:', state.constraints);
-                    loaded++;
-                    if (loaded === totalToLoad) finishLoading();
+                    checkFinished();
                 });
                 
                 // Load requirements
-                db.ref('shift-manager/requirements').once('value', function(snapshot) {
-                    state.requirements = snapshot.val() || {};
+                loadFromDatabase('requirements', function(data) {
+                    state.requirements = data || {};
                     console.log('Loaded requirements:', state.requirements);
-                    loaded++;
-                    if (loaded === totalToLoad) finishLoading();
+                    checkFinished();
                 });
-                
-                function finishLoading() {
-                    console.log('All data loaded');
-                    showStatus('✅ הנתונים נטענו בהצלחה');
-                    renderAllTabs();
-                }
                 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -594,40 +638,17 @@
                 state.requirements[worker.id] = [];
                 state.blocks[worker.id] = {};
 
-                console.log('Saving to Firebase...');
+                console.log('Saving to database...');
                 console.log('Workers:', state.workers);
 
-                // Save to Firebase
-                db.ref('shift-manager/workers').set(state.workers, function(error) {
-                    if (error) {
-                        console.error('Error saving workers:', error);
-                        showStatus('❌ שגיאה בשמירת עובדים: ' + error.message, true);
-                        return;
-                    }
-                    console.log('Workers saved successfully');
-                    
-                    // Save constraints
-                    db.ref('shift-manager/constraints').set(state.constraints, function(error) {
-                        if (error) {
-                            console.error('Error saving constraints:', error);
-                            return;
-                        }
-                        console.log('Constraints saved successfully');
-                        
-                        // Save requirements
-                        db.ref('shift-manager/requirements').set(state.requirements, function(error) {
-                            if (error) {
-                                console.error('Error saving requirements:', error);
-                                return;
-                            }
-                            console.log('Requirements saved successfully');
-                            
-                            input.value = '';
-                            renderAllTabs();
-                            showStatus('✅ עובד נוסף בהצלחה: ' + worker.name);
-                        });
-                    });
-                });
+                // Save all data
+                saveToDatabase('workers', state.workers);
+                saveToDatabase('constraints', state.constraints);
+                saveToDatabase('requirements', state.requirements);
+
+                input.value = '';
+                renderAllTabs();
+                showStatus('✅ עובד נוסף בהצלחה: ' + worker.name);
 
             } catch (error) {
                 console.error('Error in addWorker:', error);
@@ -645,17 +666,13 @@
                 delete state.constraints[workerId];
                 delete state.requirements[workerId];
 
-                db.ref('shift-manager/workers').set(state.workers, function(error) {
-                    if (error) {
-                        console.error('Error:', error);
-                        return;
-                    }
-                    db.ref('shift-manager/blocks').set(state.blocks);
-                    db.ref('shift-manager/constraints').set(state.constraints);
-                    db.ref('shift-manager/requirements').set(state.requirements);
-                    renderAllTabs();
-                    showStatus('✅ עובד נמחק בהצלחה');
-                });
+                saveToDatabase('workers', state.workers);
+                saveToDatabase('blocks', state.blocks);
+                saveToDatabase('constraints', state.constraints);
+                saveToDatabase('requirements', state.requirements);
+                
+                renderAllTabs();
+                showStatus('✅ עובד נמחק בהצלחה');
             } catch (error) {
                 console.error('Error removing worker:', error);
                 showStatus('❌ שגיאה במחיקת עובד', true);
@@ -669,13 +686,8 @@
                 const key = `${dayIdx}-${shiftId}`;
                 state.blocks[workerId][key] = !state.blocks[workerId][key];
                 
-                db.ref('shift-manager/blocks').set(state.blocks, function(error) {
-                    if (error) {
-                        console.error('Error:', error);
-                        return;
-                    }
-                    renderAllTabs();
-                });
+                saveToDatabase('blocks', state.blocks);
+                renderAllTabs();
             } catch (error) {
                 console.error('Error toggling block:', error);
             }
@@ -687,9 +699,7 @@
                 if (!state.constraints[workerId]) state.constraints[workerId] = { min: 3, max: 6 };
                 state.constraints[workerId][field] = parseInt(value);
                 
-                db.ref('shift-manager/constraints').set(state.constraints, function(error) {
-                    if (error) console.error('Error:', error);
-                });
+                saveToDatabase('constraints', state.constraints);
             } catch (error) {
                 console.error('Error updating constraint:', error);
             }
@@ -704,14 +714,9 @@
                     type: type
                 });
                 
-                db.ref('shift-manager/requirements').set(state.requirements, function(error) {
-                    if (error) {
-                        console.error('Error:', error);
-                        return;
-                    }
-                    renderAllTabs();
-                    showStatus('✅ דרישה נוספה בהצלחה');
-                });
+                saveToDatabase('requirements', state.requirements);
+                renderAllTabs();
+                showStatus('✅ דרישה נוספה בהצלחה');
             } catch (error) {
                 console.error('Error adding requirement:', error);
                 showStatus('❌ שגיאה בהוספת דרישה', true);
@@ -725,10 +730,8 @@
                     state.requirements[workerId] = state.requirements[workerId].filter(r => r.id !== reqId);
                 }
                 
-                db.ref('shift-manager/requirements').set(state.requirements, function(error) {
-                    if (error) console.error('Error:', error);
-                    renderAllTabs();
-                });
+                saveToDatabase('requirements', state.requirements);
+                renderAllTabs();
             } catch (error) {
                 console.error('Error removing requirement:', error);
             }
