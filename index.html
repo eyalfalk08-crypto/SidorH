@@ -245,20 +245,17 @@
             const list = document.getElementById('workersList');
             console.log('renderWorkers:', state.workers.length);
             if (!state.workers.length) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">אין עובדים</div>';
+                list.innerHTML = 'אין עובדים';
                 return;
             }
             const html = state.workers.map(w => `
-                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; min-width: 250px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>${w.name}</span>
-                        <button style="background: #e24b4a; color: white; padding: 4px 12px; font-size: 13px; border: none; border-radius: 3px; cursor: pointer;" onclick="removeWorker(${w.id})">מחק</button>
-                    </div>
+                <div style="border: 1px solid red; padding: 10px; margin: 5px;">
+                    ${w.name}
+                    <button onclick="removeWorker(${w.id})">מחק</button>
                 </div>
             `).join('');
             list.innerHTML = html;
-            list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px;';
-            console.log('renderWorkers done, height:', list.offsetHeight);
+            console.log('HTML set, children:', list.children.length, 'height:', list.offsetHeight);
         }
 
         function renderBlocks() {
