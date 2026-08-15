@@ -85,7 +85,8 @@
                 </div>
                 <div class="form-group">
                     <select id="importWorkerSelect" style="flex: 1; min-width: 180px;"></select>
-                    <input type="file" id="importImageFile" accept="image/*">
+                    <input type="file" id="importImageFile" accept="image/*" style="display: none;">
+                    <button type="button" class="btn-primary" id="importImageFileBtn">📷 בחר תמונה</button>
                 </div>
                 <div id="importImageWrap" style="position: relative; display: none; margin-bottom: 12px; max-width: 100%;">
                     <img id="importImagePreview" style="max-width: 100%; display: block; cursor: crosshair;">
@@ -430,6 +431,9 @@
         let importClicks = [];         // עד 2 נקודות: [{x,y}] בקואורדינטות תמונה מלאה (natural)
         let importDetected = null;     // מערך 21 תאים אחרי זיהוי: [{day, shiftId, status}]
 
+        document.getElementById('importImageFileBtn').addEventListener('click', () => {
+            document.getElementById('importImageFile').click();
+        });
         document.getElementById('importImageFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
