@@ -128,10 +128,37 @@
             constraints: {},
             requirements: {},
             shiftSettings: {},
+            shiftTimes: {},
             weeks: {},
             currentWeek: null,
             selectedBlockWorker: null
         };
+
+        // Time-range helpers
+        function timeToMinutes(t) {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        }
+        function shiftRange(shiftId) {
+            const s = state.shiftTimes[shiftId];
+            let start = timeToMinutes(s.start);
+            let end = timeToMinutes(s.end);
+            if (end <= start) end += 24 * 60; // חוצה חצות (למשל משמרת לילה)
+            return { start, end };
+        }
+        function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+            return aStart < bEnd && bStart < aEnd;
+        }
+        function getOverlappingShifts(startTime, endTime) {
+            if (!startTime || !endTime) return [];
+            let ts = timeToMinutes(startTime);
+            let te = timeToMinutes(endTime);
+            if (te <= ts) te += 24 * 60;
+            return SHIFTS.filter(shift => {
+                const r = shiftRange(shift.id);
+                return rangesOverlap(ts, te, r.start, r.end);
+            }).map(s => s.id);
+        }
 
         // Date/week helpers
         function getWeekStart(date) {
@@ -176,6 +203,7 @@
             localStorage.setItem('shift-constraints', JSON.stringify(state.constraints));
             localStorage.setItem('shift-requirements', JSON.stringify(state.requirements));
             localStorage.setItem('shift-settings', JSON.stringify(state.shiftSettings));
+            localStorage.setItem('shift-times', JSON.stringify(state.shiftTimes));
             localStorage.setItem('shift-weeks', JSON.stringify(state.weeks));
             localStorage.setItem('shift-current-week', state.currentWeek);
         }
@@ -189,6 +217,11 @@
                 evening: { min: 2, max: 4 },
                 night: { min: 1, max: 3 },
                 weekend: { min: 2, max: 4 }
+            };
+            state.shiftTimes = JSON.parse(localStorage.getItem('shift-times')) || {
+                morning: { start: '06:00', end: '14:00' },
+                evening: { start: '14:00', end: '22:00' },
+                night: { start: '22:00', end: '06:00' }
             };
             state.weeks = JSON.parse(localStorage.getItem('shift-weeks')) || {};
             state.currentWeek = localStorage.getItem('shift-current-week') || formatDateKey(getWeekStart(new Date()));
@@ -299,6 +332,13 @@
             saveState();
         };
 
+        // Update shift start/end times
+        window.updateShiftTime = function(shiftId, field, value) {
+            state.shiftTimes[shiftId][field] = value;
+            saveState();
+            renderSchedule();
+        };
+
         // Add/Remove Requirement
         window.addRequirement = function(id, type) {
             if (!state.requirements[id]) state.requirements[id] = [];
@@ -403,7 +443,21 @@
 
         function renderShiftSettings() {
             const section = document.getElementById('shiftSettingsSection');
-            let html = '<div style="font-weight: 600; margin-bottom: 12px;">מינימום ומקסימום עובדים למשמרת (בוקר / ערב / לילה / סופש)</div>';
+            let html = '<div style="font-weight: 600; margin-bottom: 12px;">שעות משמרות</div>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">';
+            SHIFTS.forEach(shift => {
+                const t = state.shiftTimes[shift.id];
+                html += `
+                    <div class="setting-card" style="min-width: 200px; margin-bottom: 0;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">${shift.name}</div>
+                        <label style="font-size: 13px;">מ־: <input type="time" value="${t.start}" onchange="updateShiftTime('${shift.id}','start',this.value)"></label>
+                        <label style="font-size: 13px; margin-right: 8px;">עד: <input type="time" value="${t.end}" onchange="updateShiftTime('${shift.id}','end',this.value)"></label>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            html += '<div style="font-weight: 600; margin-bottom: 12px;">מינימום ומקסימום עובדים למשמרת (בוקר / ערב / לילה / סופש)</div>';
             html += '<div style="display: flex; flex-wrap: wrap; gap: 12px;">';
             ['morning', 'evening', 'night', 'weekend'].forEach(key => {
                 const s = state.shiftSettings[key];
@@ -492,6 +546,29 @@
                 schedule[key] = assigned;
             });
 
+            // שיבוץ אוטומטי גם למשימות המותאמות אישית, לפי טווח השעות שלהן וחסימות העובד
+            sortedTasksList(week.customTasks).forEach(task => {
+                const overlappingShifts = getOverlappingShifts(task.startTime, task.endTime);
+
+                let candidates = state.workers.filter(w => {
+                    const constraint = state.constraints[w.id] || { min: 3, max: 6 };
+                    if (workerShiftCount[w.id] >= constraint.max) return false;
+                    // חסום אם חסום באחת המשמרות שחופפות לשעות המשימה באותו יום
+                    const blockedForTask = overlappingShifts.some(shiftId => week.blocks[w.id]?.[`${task.day}-${shiftId}`]);
+                    if (blockedForTask) return false;
+                    // לא ניתן להיות באותו זמן גם במשמרת רגילה חופפת
+                    const alreadyWorkingOverlap = overlappingShifts.some(shiftId => (schedule[`${task.day}-${shiftId}`] || []).includes(w.id));
+                    if (alreadyWorkingOverlap) return false;
+                    return true;
+                });
+
+                candidates.sort((a, b) => workerShiftCount[a.id] - workerShiftCount[b.id]);
+
+                const assigned = candidates.slice(0, task.max).map(w => w.id);
+                assigned.forEach(id => { workerShiftCount[id]++; });
+                task.assigned = assigned;
+            });
+
             week.schedule = schedule;
             saveState();
             renderSchedule();
@@ -533,9 +610,9 @@
                 html += `</tr>`;
             });
 
-            week.customTasks.forEach(task => {
+            sortedTasksList(week.customTasks).forEach(task => {
                 const understaffed = task.assigned.length < task.min;
-                html += `<tr><td style="font-weight: 600; background: #f3f0ff;">📌 ${task.name}${task.time ? `<br><span style="font-weight: 400; font-size: 11px;">${task.time}</span>` : ''}</td>`;
+                html += `<tr><td style="font-weight: 600; background: #f3f0ff;">📌 ${task.name}<br><span style="font-weight: 400; font-size: 11px;">${task.startTime}-${task.endTime}</span></td>`;
                 for (let day = 0; day < 7; day++) {
                     if (day !== task.day) { html += `<td style="color: #ccc;">—</td>`; continue; }
                     html += `<td style="min-width: 120px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
@@ -581,11 +658,12 @@
         function renderCustomTasks() {
             const week = ensureWeek(state.currentWeek);
             const section = document.getElementById('customTasksSection');
-            let html = '<div style="font-weight: 600; margin-bottom: 12px;">הוספת משימה מותאמת אישית (תוצג בסידור הסופי)</div>';
+            let html = '<div style="font-weight: 600; margin-bottom: 12px;">הוספת משימה מותאמת אישית (תוצג בסידור הסופי לפי טווח השעות)</div>';
             html += '<div class="form-group">' +
                 '<input type="text" id="newTaskName" placeholder="שם משימה...">' +
                 `<select id="newTaskDay">${DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}</select>` +
-                '<input type="text" id="newTaskTime" placeholder="שעה (למשל 14:00)" style="width: 140px;">' +
+                '<label style="font-size: 13px;">מ־ <input type="time" id="newTaskStart" value="09:00"></label>' +
+                '<label style="font-size: 13px;">עד <input type="time" id="newTaskEnd" value="17:00"></label>' +
                 '<label style="font-size: 13px;">מינ׳ <input type="number" id="newTaskMin" value="1" min="0" style="width: 60px;"></label>' +
                 '<label style="font-size: 13px;">מקס׳ <input type="number" id="newTaskMax" value="1" min="0" style="width: 60px;"></label>' +
                 '<button class="btn-primary" id="addTaskBtn">הוסף משימה</button>' +
@@ -598,23 +676,32 @@
             const list = document.getElementById('tasksListInner');
             if (!week.customTasks.length) { list.innerHTML = ''; return; }
 
-            list.innerHTML = week.customTasks.map(t => `
+            const sortedTasks = sortedTasksList(week.customTasks);
+            list.innerHTML = sortedTasks.map(t => `
                 <div class="task-card" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div><strong>${t.name}</strong> <span style="font-size: 12px; color: #5f5e5a;">— ${DAYS[t.day]}${t.time ? ', ' + t.time : ''} (מינ׳ ${t.min} - מקס׳ ${t.max})</span></div>
+                    <div><strong>${t.name}</strong> <span style="font-size: 12px; color: #5f5e5a;">— ${DAYS[t.day]}, ${t.startTime}-${t.endTime} (מינ׳ ${t.min} - מקס׳ ${t.max})</span></div>
                     <button class="btn-danger" onclick="removeCustomTask(${t.id})">מחק משימה</button>
                 </div>
             `).join('');
+        }
+
+        function sortedTasksList(tasks) {
+            return [...tasks].sort((a, b) => {
+                if (a.day !== b.day) return a.day - b.day;
+                return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+            });
         }
 
         function addCustomTask() {
             const name = document.getElementById('newTaskName').value.trim();
             if (!name) return;
             const day = parseInt(document.getElementById('newTaskDay').value);
-            const time = document.getElementById('newTaskTime').value.trim();
+            const startTime = document.getElementById('newTaskStart').value;
+            const endTime = document.getElementById('newTaskEnd').value;
             const min = parseInt(document.getElementById('newTaskMin').value) || 0;
             const max = parseInt(document.getElementById('newTaskMax').value) || 0;
             const week = ensureWeek(state.currentWeek);
-            week.customTasks.push({ id: Date.now(), name, day, time, min, max, assigned: [] });
+            week.customTasks.push({ id: Date.now(), name, day, startTime, endTime, min, max, assigned: [] });
             saveState();
             renderCustomTasks();
             renderSchedule();
