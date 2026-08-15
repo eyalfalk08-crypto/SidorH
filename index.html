@@ -35,8 +35,12 @@
         th, td { padding: 8px; border: 1px solid #e0dcd5; text-align: center; vertical-align: top; }
         th { font-weight: 600; background: #f9f7f4; }
 
-        .worker-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #d97757; color: white; border-radius: 3px; margin: 2px; font-size: 12px; font-weight: 500; }
+        .worker-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; color: white; border-radius: 3px; margin: 2px; font-size: 12px; font-weight: 500; }
+        .worker-badge.manual { background: #7f77dd; }
+        .worker-badge.forced { background: #e24b4a; }
         .worker-badge span { cursor: pointer; font-weight: 700; }
+        .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #5f5e5a; margin-bottom: 12px; }
+        .legend span.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 4px; vertical-align: middle; }
         .empty-state { text-align: center; padding: 40px 20px; color: #5f5e5a; }
         .status { margin-top: 20px; padding: 12px; background: #e6f1fb; border-left: 4px solid #378add; border-radius: 4px; font-size: 13px; color: #185fa5; }
         .status.error { background: #fcebeb; border-left-color: #e24b4a; color: #a32d2d; }
@@ -160,6 +164,21 @@
             }).map(s => s.id);
         }
 
+        // צבע/תווית לתג עובד לפי סוג השיבוץ: אוטומטי / ידני / ידני-בניגוד לחסימה
+        const MIN_GAP_MINUTES = 8 * 60; // 8 שעות הפרש מינימלי בין סוף משמרת/משימה לתחילת הבאה
+        function slotAbsoluteRange(day, shiftId) {
+            const r = shiftRange(shiftId);
+            const offset = day * 24 * 60;
+            return { start: offset + r.start, end: offset + r.end };
+        }
+        function taskAbsoluteRange(task) {
+            let s = timeToMinutes(task.startTime);
+            let e = timeToMinutes(task.endTime);
+            if (e <= s) e += 24 * 60;
+            const offset = task.day * 24 * 60;
+            return { start: offset + s, end: offset + e };
+        }
+
         // Date/week helpers
         function getWeekStart(date) {
             const d = new Date(date);
@@ -183,9 +202,21 @@
         }
         function ensureWeek(weekKey) {
             if (!state.weeks[weekKey]) {
-                state.weeks[weekKey] = { blocks: {}, schedule: null, customTasks: [] };
+                state.weeks[weekKey] = { blocks: {}, schedule: null, customTasks: [], manual: {}, forced: {} };
             }
-            return state.weeks[weekKey];
+            const week = state.weeks[weekKey];
+            if (!week.manual) week.manual = {};
+            if (!week.forced) week.forced = {};
+            week.customTasks.forEach(t => {
+                if (!t.manual) t.manual = [];
+                if (!t.forced) t.forced = [];
+            });
+            return week;
+        }
+        function badgeClass(workerId, manualList, forcedList) {
+            if (forcedList && forcedList.includes(workerId)) return 'forced';
+            if (manualList && manualList.includes(workerId)) return 'manual';
+            return '';
         }
         function isWeekendSlot(day, shiftId) {
             if (day === 6) return true; // כל שבת
@@ -301,7 +332,13 @@
                         week.schedule[key] = week.schedule[key].filter(wid => wid !== id);
                     });
                 }
-                week.customTasks.forEach(t => { t.assigned = t.assigned.filter(wid => wid !== id); });
+                if (week.manual) Object.keys(week.manual).forEach(key => { week.manual[key] = week.manual[key].filter(wid => wid !== id); });
+                if (week.forced) Object.keys(week.forced).forEach(key => { week.forced[key] = week.forced[key].filter(wid => wid !== id); });
+                week.customTasks.forEach(t => {
+                    t.assigned = t.assigned.filter(wid => wid !== id);
+                    if (t.manual) t.manual = t.manual.filter(wid => wid !== id);
+                    if (t.forced) t.forced = t.forced.filter(wid => wid !== id);
+                });
             });
             if (state.selectedBlockWorker === id) state.selectedBlockWorker = null;
             saveState();
@@ -503,13 +540,15 @@
             const schedule = {};
             const workerShiftCount = {};
             const workerNightCount = {};
+            const workerLastEnd = {}; // workerId -> זמן סיום מוחלט (בדקות) של השיבוץ האחרון שלו
+            week.manual = {};
+            week.forced = {};
             state.workers.forEach(w => { workerShiftCount[w.id] = 0; workerNightCount[w.id] = 0; });
 
-            SLOT_ORDER.forEach((slot, idx) => {
+            SLOT_ORDER.forEach(slot => {
                 const key = `${slot.day}-${slot.shiftId}`;
                 const settings = getSlotSettings(slot.day, slot.shiftId);
-                const prevSlot = idx > 0 ? SLOT_ORDER[idx - 1] : null;
-                const prevAssigned = prevSlot ? (schedule[`${prevSlot.day}-${prevSlot.shiftId}`] || []) : [];
+                const range = slotAbsoluteRange(slot.day, slot.shiftId);
 
                 let candidates = state.workers.filter(w => {
                     const blocked = week.blocks[w.id]?.[key];
@@ -517,7 +556,7 @@
                     const reqs = (state.requirements[w.id] || []).map(r => r.type);
                     if (blocked) return false;
                     if (workerShiftCount[w.id] >= constraint.max) return false;
-                    if (prevAssigned.includes(w.id)) return false; // מרווח של משמרת אחת לפחות
+                    if (workerLastEnd[w.id] !== undefined && (range.start - workerLastEnd[w.id]) < MIN_GAP_MINUTES) return false; // מרווח 8 שעות לפחות
                     if (slot.shiftId === 'night' && reqs.includes('no-night')) return false;
                     if (slot.shiftId !== 'morning' && reqs.includes('morning-only')) return false;
                     return true;
@@ -542,31 +581,37 @@
                 assigned.forEach(id => {
                     workerShiftCount[id]++;
                     if (slot.shiftId === 'night') workerNightCount[id]++;
+                    workerLastEnd[id] = range.end;
                 });
                 schedule[key] = assigned;
             });
 
-            // שיבוץ אוטומטי גם למשימות המותאמות אישית, לפי טווח השעות שלהן וחסימות העובד
+            // שיבוץ אוטומטי גם למשימות המותאמות אישית, לפי טווח השעות שלהן, חסימות ומרווח 8 שעות
             sortedTasksList(week.customTasks).forEach(task => {
                 const overlappingShifts = getOverlappingShifts(task.startTime, task.endTime);
+                const range = taskAbsoluteRange(task);
 
                 let candidates = state.workers.filter(w => {
                     const constraint = state.constraints[w.id] || { min: 3, max: 6 };
                     if (workerShiftCount[w.id] >= constraint.max) return false;
-                    // חסום אם חסום באחת המשמרות שחופפות לשעות המשימה באותו יום
                     const blockedForTask = overlappingShifts.some(shiftId => week.blocks[w.id]?.[`${task.day}-${shiftId}`]);
                     if (blockedForTask) return false;
-                    // לא ניתן להיות באותו זמן גם במשמרת רגילה חופפת
                     const alreadyWorkingOverlap = overlappingShifts.some(shiftId => (schedule[`${task.day}-${shiftId}`] || []).includes(w.id));
                     if (alreadyWorkingOverlap) return false;
+                    if (workerLastEnd[w.id] !== undefined && (range.start - workerLastEnd[w.id]) < MIN_GAP_MINUTES) return false;
                     return true;
                 });
 
                 candidates.sort((a, b) => workerShiftCount[a.id] - workerShiftCount[b.id]);
 
                 const assigned = candidates.slice(0, task.max).map(w => w.id);
-                assigned.forEach(id => { workerShiftCount[id]++; });
+                assigned.forEach(id => {
+                    workerShiftCount[id]++;
+                    workerLastEnd[id] = range.end;
+                });
                 task.assigned = assigned;
+                task.manual = [];
+                task.forced = [];
             });
 
             week.schedule = schedule;
@@ -585,6 +630,7 @@
             }
             const schedule = week.schedule || {};
 
+            html += `<div class="legend"><span><span class="dot" style="background:#d97757;"></span>אוטומטי</span><span><span class="dot" style="background:#7f77dd;"></span>ידני</span><span><span class="dot" style="background:#e24b4a;"></span>ידני למרות חסימה</span></div>`;
             html += `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
 
             SHIFTS.forEach(shift => {
@@ -594,16 +640,17 @@
                     const assigned = schedule[key] || [];
                     const settings = getSlotSettings(day, shift.id);
                     const understaffed = assigned.length < settings.min;
-                    html += `<td style="min-width: 120px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
+                    html += `<td style="min-width: 130px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
                     html += assigned.map(wid => {
                         const w = state.workers.find(x => x.id === wid);
-                        return `<div class="worker-badge">${w ? w.name : '?'}<span onclick="removeWorkerFromSlot(${day}, '${shift.id}', ${wid})">✕</span></div>`;
+                        const cls = badgeClass(wid, week.manual[key], week.forced[key]);
+                        return `<div class="worker-badge ${cls}">${w ? w.name : '?'}<span onclick="removeWorkerFromSlot(${day}, '${shift.id}', ${wid})">✕</span></div>`;
                     }).join('');
                     if (understaffed) html += `<div style="font-size: 11px; color: #a32d2d;">⚠️ חסר (מינ׳ ${settings.min})</div>`;
                     const available = state.workers.filter(w => !assigned.includes(w.id));
                     html += `<select onchange="if (this.value) addWorkerToSlot(${day}, '${shift.id}', parseInt(this.value)); this.value='';" style="margin-top: 4px; width: 100%; font-size: 11px;">
                         <option value="">+ הוסף עובד</option>
-                        ${available.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                        ${available.map(w => `<option value="${w.id}">${w.name}${week.blocks[w.id]?.[key] ? ' (חסום)' : ''}</option>`).join('')}
                     </select>`;
                     html += `</td>`;
                 }
@@ -612,19 +659,24 @@
 
             sortedTasksList(week.customTasks).forEach(task => {
                 const understaffed = task.assigned.length < task.min;
-                html += `<tr><td style="font-weight: 600; background: #f3f0ff;">📌 ${task.name}<br><span style="font-weight: 400; font-size: 11px;">${task.startTime}-${task.endTime}</span></td>`;
+                const overlappingShifts = getOverlappingShifts(task.startTime, task.endTime);
+                html += `<tr><td style="font-weight: 600; background: #f3f0ff;">📌 ${task.name}<br><span style="font-weight: 400; font-size: 11px;">${task.startTime}-${task.endTime}</span><br><span onclick="removeCustomTask(${task.id})" style="cursor: pointer; color: #e24b4a; font-size: 11px;">🗑 מחק משימה</span></td>`;
                 for (let day = 0; day < 7; day++) {
                     if (day !== task.day) { html += `<td style="color: #ccc;">—</td>`; continue; }
-                    html += `<td style="min-width: 120px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
+                    html += `<td style="min-width: 130px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
                     const available = state.workers.filter(w => !task.assigned.includes(w.id));
                     html += task.assigned.map(wid => {
                         const w = state.workers.find(x => x.id === wid);
-                        return `<div class="worker-badge">${w ? w.name : '?'}<span onclick="removeWorkerFromTask(${task.id}, ${wid})">✕</span></div>`;
+                        const cls = badgeClass(wid, task.manual, task.forced);
+                        return `<div class="worker-badge ${cls}">${w ? w.name : '?'}<span onclick="removeWorkerFromTask(${task.id}, ${wid})">✕</span></div>`;
                     }).join('');
                     if (understaffed) html += `<div style="font-size: 11px; color: #a32d2d;">⚠️ חסר (מינ׳ ${task.min})</div>`;
                     html += `<select onchange="if (this.value) addWorkerToTask(${task.id}, parseInt(this.value)); this.value='';" style="margin-top: 4px; width: 100%; font-size: 11px;">
                         <option value="">+ הוסף עובד</option>
-                        ${available.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                        ${available.map(w => {
+                            const blockedHere = overlappingShifts.some(sid => week.blocks[w.id]?.[`${task.day}-${sid}`]);
+                            return `<option value="${w.id}">${w.name}${blockedHere ? ' (חסום)' : ''}</option>`;
+                        }).join('')}
                     </select>`;
                     html += `</td>`;
                 }
@@ -640,25 +692,42 @@
             const key = `${day}-${shiftId}`;
             if (week.schedule && week.schedule[key]) {
                 week.schedule[key] = week.schedule[key].filter(id => id !== workerId);
-                saveState();
-                renderSchedule();
             }
+            if (week.manual[key]) week.manual[key] = week.manual[key].filter(id => id !== workerId);
+            if (week.forced[key]) week.forced[key] = week.forced[key].filter(id => id !== workerId);
+            saveState();
+            renderSchedule();
         };
         window.addWorkerToSlot = function(day, shiftId, workerId) {
             const week = ensureWeek(state.currentWeek);
             const key = `${day}-${shiftId}`;
             if (!week.schedule) week.schedule = {};
             if (!week.schedule[key]) week.schedule[key] = [];
-            if (!week.schedule[key].includes(workerId)) week.schedule[key].push(workerId);
+            if (week.schedule[key].includes(workerId)) return;
+
+            if (!week.manual[key]) week.manual[key] = [];
+            if (!week.forced[key]) week.forced[key] = [];
+
+            const isBlocked = !!week.blocks[workerId]?.[key];
+            if (isBlocked) {
+                const proceed = confirm('העובד חסום במשמרת הזו. להוסיף אותו בכל זאת?');
+                if (!proceed) return;
+                const isOneTime = confirm('לסמן כ"הנחתה" חד-פעמית לשבוע זה בלבד?\n\nאישור = הנחתה (חד-פעמי, החסימה נשארת)\nביטול = סבב קבוע (מסיר את החסימה הזו)');
+                if (!isOneTime) {
+                    if (week.blocks[workerId]) week.blocks[workerId][key] = false;
+                }
+                week.forced[key].push(workerId);
+            }
+            week.manual[key].push(workerId);
+            week.schedule[key].push(workerId);
             saveState();
-            renderSchedule();
+            renderAll();
         };
 
         // ===== Custom tasks =====
         function renderCustomTasks() {
-            const week = ensureWeek(state.currentWeek);
             const section = document.getElementById('customTasksSection');
-            let html = '<div style="font-weight: 600; margin-bottom: 12px;">הוספת משימה מותאמת אישית (תוצג בסידור הסופי לפי טווח השעות)</div>';
+            let html = '<div style="font-weight: 600; margin-bottom: 12px;">הוספת משימה מותאמת אישית (תופיע כמשבצת בטבלת הסידור למעלה, לפי יום ושעה)</div>';
             html += '<div class="form-group">' +
                 '<input type="text" id="newTaskName" placeholder="שם משימה...">' +
                 `<select id="newTaskDay">${DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}</select>` +
@@ -668,21 +737,8 @@
                 '<label style="font-size: 13px;">מקס׳ <input type="number" id="newTaskMax" value="1" min="0" style="width: 60px;"></label>' +
                 '<button class="btn-primary" id="addTaskBtn">הוסף משימה</button>' +
                 '</div>';
-            html += '<div id="tasksListInner"></div>';
             section.innerHTML = html;
-
             document.getElementById('addTaskBtn').addEventListener('click', addCustomTask);
-
-            const list = document.getElementById('tasksListInner');
-            if (!week.customTasks.length) { list.innerHTML = ''; return; }
-
-            const sortedTasks = sortedTasksList(week.customTasks);
-            list.innerHTML = sortedTasks.map(t => `
-                <div class="task-card" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div><strong>${t.name}</strong> <span style="font-size: 12px; color: #5f5e5a;">— ${DAYS[t.day]}, ${t.startTime}-${t.endTime} (מינ׳ ${t.min} - מקס׳ ${t.max})</span></div>
-                    <button class="btn-danger" onclick="removeCustomTask(${t.id})">מחק משימה</button>
-                </div>
-            `).join('');
         }
 
         function sortedTasksList(tasks) {
@@ -701,9 +757,8 @@
             const min = parseInt(document.getElementById('newTaskMin').value) || 0;
             const max = parseInt(document.getElementById('newTaskMax').value) || 0;
             const week = ensureWeek(state.currentWeek);
-            week.customTasks.push({ id: Date.now(), name, day, startTime, endTime, min, max, assigned: [] });
+            week.customTasks.push({ id: Date.now(), name, day, startTime, endTime, min, max, assigned: [], manual: [], forced: [] });
             saveState();
-            renderCustomTasks();
             renderSchedule();
             showStatus('✅ משימה נוספה');
         }
@@ -711,23 +766,39 @@
             const week = ensureWeek(state.currentWeek);
             week.customTasks = week.customTasks.filter(t => t.id !== id);
             saveState();
-            renderCustomTasks();
             renderSchedule();
         };
         window.addWorkerToTask = function(taskId, workerId) {
             const week = ensureWeek(state.currentWeek);
             const task = week.customTasks.find(t => t.id === taskId);
-            if (task && !task.assigned.includes(workerId)) {
-                task.assigned.push(workerId);
-                saveState();
-                renderSchedule();
+            if (!task || task.assigned.includes(workerId)) return;
+
+            const overlappingShifts = getOverlappingShifts(task.startTime, task.endTime);
+            const isBlocked = overlappingShifts.some(shiftId => week.blocks[workerId]?.[`${task.day}-${shiftId}`]);
+
+            if (isBlocked) {
+                const proceed = confirm('העובד חסום במשמרת שחופפת למשימה זו. להוסיף אותו בכל זאת?');
+                if (!proceed) return;
+                const isOneTime = confirm('לסמן כ"הנחתה" חד-פעמית לשבוע זה בלבד?\n\nאישור = הנחתה (חד-פעמי, החסימה נשארת)\nביטול = סבב קבוע (מסיר את החסימה הזו)');
+                if (!isOneTime) {
+                    overlappingShifts.forEach(shiftId => {
+                        if (week.blocks[workerId]) week.blocks[workerId][`${task.day}-${shiftId}`] = false;
+                    });
+                }
+                task.forced.push(workerId);
             }
+            task.manual.push(workerId);
+            task.assigned.push(workerId);
+            saveState();
+            renderAll();
         };
         window.removeWorkerFromTask = function(taskId, workerId) {
             const week = ensureWeek(state.currentWeek);
             const task = week.customTasks.find(t => t.id === taskId);
             if (task) {
                 task.assigned = task.assigned.filter(id => id !== workerId);
+                task.manual = task.manual.filter(id => id !== workerId);
+                task.forced = task.forced.filter(id => id !== workerId);
                 saveState();
                 renderSchedule();
             }
