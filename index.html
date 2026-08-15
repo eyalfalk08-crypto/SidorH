@@ -9,54 +9,58 @@
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f9f7f4; color: #2c2a27; direction: rtl; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         h1 { font-size: 28px; font-weight: 500; margin-bottom: 24px; }
-        
-        .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e0dcd5; flex-wrap: wrap; }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #e0dcd5; flex-wrap: wrap; }
         .tab-button { padding: 12px 16px; background: transparent; color: #5f5e5a; border: none; cursor: pointer; font-weight: 500; font-size: 14px; }
         .tab-button.active { background: #d97757; color: white; font-weight: 600; }
-        
+
         .tab-content { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .tab-content.active { display: block; }
-        
-        .form-group { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        .week-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px 16px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .week-bar button { background: #7f77dd; color: white; }
+        #weekLabel { flex: 1; text-align: center; font-weight: 600; font-size: 15px; }
+
+        .form-group { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         input, select { padding: 10px 12px; border: 1px solid #e0dcd5; border-radius: 4px; font-size: 14px; background: white; color: #2c2a27; }
         input[type="text"] { flex: 1; min-width: 200px; }
-        
+
         button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px; }
         .btn-primary { background: #7f77dd; color: white; }
         .btn-success { background: #639922; color: white; }
         .btn-danger { background: #e24b4a; color: white; padding: 4px 12px; font-size: 13px; }
-        
-        .grid { display: none !important; }
-        .grid-large { display: none !important; }
-        
-        .card { padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; }
-        .card-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
-        
-        .shift-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .shift-btn { padding: 6px 8px; border: 1px solid #e0dcd5; background: white; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500; }
-        .shift-btn.blocked { background: #e24b4a; color: white; border-color: #e24b4a; }
-        
+
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { padding: 12px; border: 1px solid #e0dcd5; text-align: center; }
+        th, td { padding: 8px; border: 1px solid #e0dcd5; text-align: center; vertical-align: top; }
         th { font-weight: 600; background: #f9f7f4; }
-        
-        .worker-badge { display: inline-block; padding: 4px 8px; background: #d97757; color: white; border-radius: 3px; margin-bottom: 4px; font-size: 12px; font-weight: 500; }
-        .empty-state { text-align: center; padding: 40px 20px; color: #5f5e5a; grid-column: 1 / -1; }
+
+        .worker-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #d97757; color: white; border-radius: 3px; margin: 2px; font-size: 12px; font-weight: 500; }
+        .worker-badge span { cursor: pointer; font-weight: 700; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #5f5e5a; }
         .status { margin-top: 20px; padding: 12px; background: #e6f1fb; border-left: 4px solid #378add; border-radius: 4px; font-size: 13px; color: #185fa5; }
         .status.error { background: #fcebeb; border-left-color: #e24b4a; color: #a32d2d; }
+        .task-card, .worker-row, .req-card, .constraint-row, .setting-card {
+            padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📋 מנהל סידור משמרות</h1>
-        
+
         <div class="tabs">
             <button class="tab-button active" data-tab="workers">👥 עובדים</button>
             <button class="tab-button" data-tab="blocks">🚫 חסימות</button>
-            <button class="tab-button" data-tab="requirements">📝 דרישות</button>
+            <button class="tab-button" data-tab="requirements">📝 תנאים</button>
             <button class="tab-button" data-tab="constraints">⚙️ הגדרות</button>
             <button class="tab-button" data-tab="schedule">✅ סידור סופי</button>
+        </div>
+
+        <div class="week-bar">
+            <button id="prevWeekBtn">◀ שבוע קודם</button>
+            <div id="weekLabel"></div>
+            <button id="nextWeekBtn">שבוע הבא ▶</button>
         </div>
 
         <!-- Workers Tab -->
@@ -83,21 +87,20 @@
             <div id="requirementsList"></div>
         </div>
 
-        <!-- Constraints Tab -->
+        <!-- Constraints / Settings Tab -->
         <div class="tab-content" data-tab="constraints">
+            <div id="shiftSettingsSection"></div>
+            <div style="font-weight: 600; margin: 20px 0 12px;">מינימום ומקסימום משמרות לעובד (שבועי)</div>
             <div id="constraintsList"></div>
         </div>
 
         <!-- Schedule Tab -->
         <div class="tab-content" data-tab="schedule">
             <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                    אנשים בכל משמרת:
-                    <input type="number" id="peoplePerShift" value="3" min="1" max="10" style="width: 60px;">
-                </label>
-                <button class="btn-success" id="generateScheduleBtn">יצור סידור אוטומטי</button>
+                <button class="btn-success" id="generateScheduleBtn">יצור סידור אוטומטי לשבוע זה</button>
             </div>
             <div class="table-container" id="scheduleView"></div>
+            <div id="customTasksSection" style="margin-top: 24px;"></div>
         </div>
 
         <div id="statusMessage"></div>
@@ -107,47 +110,96 @@
         // Constants
         const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
         const SHIFTS = [
-            { id: 'morning', name: 'בוקר', time: '06:00-14:00' },
-            { id: 'evening', name: 'ערב', time: '14:00-22:00' },
-            { id: 'night', name: 'לילה', time: '22:00-06:00' }
+            { id: 'morning', name: 'בוקר' },
+            { id: 'evening', name: 'ערב' },
+            { id: 'night', name: 'לילה' }
         ];
+        const SLOT_ORDER = [];
+        for (let day = 0; day < 7; day++) {
+            SHIFTS.forEach(shift => SLOT_ORDER.push({ day, shiftId: shift.id }));
+        }
         const REQUIREMENT_TYPES = [
-            { value: 'shabbat', label: '🕯️ שבת ערב וליל שבת' },
-            { value: 'friday-night', label: '🌙 ערב שישי לילה' },
-            { value: 'weekend', label: '🎉 סוף שבוע' },
             { value: 'no-night', label: '😴 ללא לילה' },
+            { value: 'night-mandatory', label: '🌙 לילה חובה' },
+            { value: 'friday-evening', label: '🕯️ ערב שישי' },
+            { value: 'weekend-shift', label: '🎉 משמרת סופש (שבת)' },
             { value: 'morning-only', label: '🌅 בוקר בלבד' }
         ];
+        const SHIFT_SETTING_LABELS = { morning: 'בוקר', evening: 'ערב', night: 'לילה', weekend: 'סופש (שישי ערב - שבת לילה)' };
 
         // State
         const state = {
             workers: [],
-            blocks: {},
             constraints: {},
             requirements: {},
-            schedule: null,
-            peoplePerShift: 3,
+            shiftSettings: {},
+            weeks: {},
+            currentWeek: null,
             selectedBlockWorker: null
         };
+
+        // Date/week helpers
+        function getWeekStart(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            const day = d.getDay();
+            d.setDate(d.getDate() - day);
+            return d;
+        }
+        function formatDateKey(date) {
+            const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, '0'), day = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+        function formatDateDisplay(date) {
+            return date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+        }
+        function getWeekLabel(weekKey) {
+            const start = new Date(weekKey);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 6);
+            return `שבוע: ${formatDateDisplay(start)} - ${formatDateDisplay(end)}`;
+        }
+        function ensureWeek(weekKey) {
+            if (!state.weeks[weekKey]) {
+                state.weeks[weekKey] = { blocks: {}, schedule: null, customTasks: [] };
+            }
+            return state.weeks[weekKey];
+        }
+        function isWeekendSlot(day, shiftId) {
+            if (day === 6) return true; // כל שבת
+            if (day === 5 && (shiftId === 'evening' || shiftId === 'night')) return true; // ערב שישי + ליל שישי
+            return false;
+        }
+        function getSlotSettings(day, shiftId) {
+            if (isWeekendSlot(day, shiftId)) return state.shiftSettings.weekend;
+            return state.shiftSettings[shiftId];
+        }
 
         // localStorage helpers
         function saveState() {
             localStorage.setItem('shift-workers', JSON.stringify(state.workers));
-            localStorage.setItem('shift-blocks', JSON.stringify(state.blocks));
             localStorage.setItem('shift-constraints', JSON.stringify(state.constraints));
             localStorage.setItem('shift-requirements', JSON.stringify(state.requirements));
-            console.log('✅ נתונים שמורים');
+            localStorage.setItem('shift-settings', JSON.stringify(state.shiftSettings));
+            localStorage.setItem('shift-weeks', JSON.stringify(state.weeks));
+            localStorage.setItem('shift-current-week', state.currentWeek);
         }
 
         function loadState() {
             state.workers = JSON.parse(localStorage.getItem('shift-workers')) || [];
-            state.blocks = JSON.parse(localStorage.getItem('shift-blocks')) || {};
             state.constraints = JSON.parse(localStorage.getItem('shift-constraints')) || {};
             state.requirements = JSON.parse(localStorage.getItem('shift-requirements')) || {};
-            console.log('✅ נתונים טענו, עובדים:', state.workers.length);
+            state.shiftSettings = JSON.parse(localStorage.getItem('shift-settings')) || {
+                morning: { min: 2, max: 4 },
+                evening: { min: 2, max: 4 },
+                night: { min: 1, max: 3 },
+                weekend: { min: 2, max: 4 }
+            };
+            state.weeks = JSON.parse(localStorage.getItem('shift-weeks')) || {};
+            state.currentWeek = localStorage.getItem('shift-current-week') || formatDateKey(getWeekStart(new Date()));
+            ensureWeek(state.currentWeek);
         }
 
-        // Status message
         function showStatus(message, isError = false) {
             const div = document.getElementById('statusMessage');
             div.innerHTML = `<div class="status ${isError ? 'error' : ''}">${message}</div>`;
@@ -162,10 +214,31 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
-                console.log('Tab switched to:', tab);
                 renderAll();
             });
         });
+
+        // Week navigation
+        document.getElementById('prevWeekBtn').addEventListener('click', () => {
+            const d = new Date(state.currentWeek);
+            d.setDate(d.getDate() - 7);
+            state.currentWeek = formatDateKey(d);
+            ensureWeek(state.currentWeek);
+            saveState();
+            renderAll();
+        });
+        document.getElementById('nextWeekBtn').addEventListener('click', () => {
+            const d = new Date(state.currentWeek);
+            d.setDate(d.getDate() + 7);
+            state.currentWeek = formatDateKey(d);
+            ensureWeek(state.currentWeek);
+            saveState();
+            renderAll();
+        });
+
+        function renderWeekBar() {
+            document.getElementById('weekLabel').textContent = getWeekLabel(state.currentWeek);
+        }
 
         // Block worker selection
         document.getElementById('blockWorkerSelect').addEventListener('change', (e) => {
@@ -178,15 +251,10 @@
             const input = document.getElementById('newWorkerName');
             if (!input.value.trim()) return;
 
-            const worker = {
-                id: Date.now(),
-                name: input.value.trim()
-            };
-
+            const worker = { id: Date.now(), name: input.value.trim() };
             state.workers.push(worker);
             state.constraints[worker.id] = { min: 3, max: 6 };
             state.requirements[worker.id] = [];
-            state.blocks[worker.id] = {};
 
             input.value = '';
             saveState();
@@ -200,24 +268,33 @@
 
         // Remove Worker
         window.removeWorker = function(id) {
-            if (!confirm('למחוק עובד?')) return;
+            if (!confirm('למחוק עובד? זה יסיר אותו גם מסידורים ומחסימות בכל השבועות.')) return;
             state.workers = state.workers.filter(w => w.id !== id);
-            delete state.blocks[id];
             delete state.constraints[id];
             delete state.requirements[id];
+            Object.values(state.weeks).forEach(week => {
+                delete week.blocks[id];
+                if (week.schedule) {
+                    Object.keys(week.schedule).forEach(key => {
+                        week.schedule[key] = week.schedule[key].filter(wid => wid !== id);
+                    });
+                }
+                week.customTasks.forEach(t => { t.assigned = t.assigned.filter(wid => wid !== id); });
+            });
             if (state.selectedBlockWorker === id) state.selectedBlockWorker = null;
             saveState();
             renderAll();
             showStatus('✅ עובד נמחק');
         };
 
-        // Toggle Block
+        // Toggle Block (current week)
         window.toggleBlock = function(id, day, shift) {
-            if (!state.blocks[id]) state.blocks[id] = {};
+            const week = ensureWeek(state.currentWeek);
+            if (!week.blocks[id]) week.blocks[id] = {};
             const key = `${day}-${shift}`;
-            state.blocks[id][key] = !state.blocks[id][key];
+            week.blocks[id][key] = !week.blocks[id][key];
             saveState();
-            renderAll();
+            renderBlocks();
         };
 
         // Update Constraint
@@ -227,84 +304,85 @@
             saveState();
         };
 
-        // Add Requirement
-        window.addRequirement = function(id, type) {
-            if (!state.requirements[id]) state.requirements[id] = [];
-            state.requirements[id].push({ id: Date.now(), type });
+        // Update shift-type settings
+        window.updateShiftSetting = function(key, field, value) {
+            state.shiftSettings[key][field] = parseInt(value);
             saveState();
-            renderAll();
-            showStatus('✅ דרישה נוספה');
         };
 
-        // Remove Requirement
+        // Add/Remove Requirement
+        window.addRequirement = function(id, type) {
+            if (!state.requirements[id]) state.requirements[id] = [];
+            if (state.requirements[id].some(r => r.type === type)) return;
+            state.requirements[id].push({ id: Date.now(), type });
+            saveState();
+            renderRequirements();
+            showStatus('✅ תנאי נוסף');
+        };
         window.removeRequirement = function(id, reqId) {
             if (state.requirements[id]) {
                 state.requirements[id] = state.requirements[id].filter(r => r.id !== reqId);
             }
             saveState();
-            renderAll();
+            renderRequirements();
         };
 
-        // Render functions
+        // ===== Render functions =====
         function renderAll() {
-            console.log('🔄 renderAll - עובדים:', state.workers.length);
+            renderWeekBar();
             renderWorkers();
             renderBlocks();
             renderRequirements();
+            renderShiftSettings();
             renderConstraints();
+            renderSchedule();
+            renderCustomTasks();
         }
 
         function renderWorkers() {
             const list = document.getElementById('workersList');
-            console.log('renderWorkers:', state.workers.length);
             if (!state.workers.length) {
-                list.innerHTML = 'אין עובדים';
+                list.innerHTML = '<div class="empty-state">אין עובדים</div>';
                 return;
             }
-            const html = state.workers.map(w => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 8px;">
+            list.innerHTML = state.workers.map(w => `
+                <div class="worker-row" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${w.name}</span>
                     <button class="btn-danger" onclick="removeWorker(${w.id})">מחק</button>
                 </div>
             `).join('');
-            list.innerHTML = html;
         }
 
         function renderBlocks() {
+            const week = ensureWeek(state.currentWeek);
             const select = document.getElementById('blockWorkerSelect');
             const list = document.getElementById('blocksList');
 
             if (!state.workers.length) {
                 select.innerHTML = '<option value="">אין עובדים</option>';
-                list.innerHTML = 'הוסף עובדים קודם';
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
 
-            // Build dropdown (preserve current selection)
             const currentSelection = state.selectedBlockWorker;
             select.innerHTML = '<option value="">בחר עובד...</option>' +
                 state.workers.map(w => `<option value="${w.id}" ${currentSelection === w.id ? 'selected' : ''}>${w.name}</option>`).join('');
 
             if (!state.selectedBlockWorker) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #5f5e5a;">בחר עובד כדי לסמן חסימות</div>';
+                list.innerHTML = '<div class="empty-state">בחר עובד כדי לסמן חסימות לשבוע הנוכחי</div>';
                 return;
             }
 
             const worker = state.workers.find(w => w.id === state.selectedBlockWorker);
-            if (!worker) {
-                state.selectedBlockWorker = null;
-                list.innerHTML = '';
-                return;
-            }
+            if (!worker) { state.selectedBlockWorker = null; list.innerHTML = ''; return; }
 
-            let html = `<div style="margin-bottom: 12px; font-weight: 600;">חסימות עבור: ${worker.name}</div>`;
+            let html = `<div style="margin-bottom: 12px; font-weight: 600;">חסימות עבור: ${worker.name} (${getWeekLabel(state.currentWeek)})</div>`;
             html += `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
-
             SHIFTS.forEach(shift => {
                 html += `<tr><td style="font-weight: 600; background: #f9f7f4;">${shift.name}</td>`;
                 for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
                     const key = `${dayIdx}-${shift.id}`;
-                    const blocked = state.blocks[worker.id]?.[key];
+                    const blocked = week.blocks[worker.id]?.[key];
                     html += `<td>
                         <button style="width: 100%; padding: 8px; border: 1px solid ${blocked ? '#e24b4a' : '#e0dcd5'}; background: ${blocked ? '#e24b4a' : 'white'}; color: ${blocked ? 'white' : '#2c2a27'}; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 500;" onclick="toggleBlock(${worker.id}, ${dayIdx}, '${shift.id}')">
                             ${blocked ? '🚫 חסום' : 'פנוי'}
@@ -313,7 +391,6 @@
                 }
                 html += `</tr>`;
             });
-
             html += `</tbody></table>`;
             list.innerHTML = html;
         }
@@ -321,13 +398,13 @@
         function renderRequirements() {
             const list = document.getElementById('requirementsList');
             if (!state.workers.length) {
-                list.innerHTML = 'הוסף עובדים קודם';
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
-            const html = state.workers.map(w => `
-                <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 12px;">
+            list.innerHTML = state.workers.map(w => `
+                <div class="req-card">
                     <div style="font-weight: 600; margin-bottom: 8px;">${w.name}</div>
-                    ${(state.requirements[w.id] || []).length > 0 ? 
+                    ${(state.requirements[w.id] || []).length > 0 ?
                         (state.requirements[w.id] || []).map(req => `
                             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border-radius: 3px; margin-bottom: 4px; font-size: 13px;">
                                 <span>${REQUIREMENT_TYPES.find(t => t.value === req.type)?.label}</span>
@@ -336,98 +413,243 @@
                         `).join('')
                     : ''}
                     <select onchange="if (this.value) addRequirement(${w.id}, this.value); this.value = '';" style="width: 100%; margin-top: 8px;">
-                        <option value="">בחר דרישה...</option>
+                        <option value="">הוסף תנאי...</option>
                         ${REQUIREMENT_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                     </select>
                 </div>
             `).join('');
-            list.innerHTML = html;
+        }
+
+        function renderShiftSettings() {
+            const section = document.getElementById('shiftSettingsSection');
+            let html = '<div style="font-weight: 600; margin-bottom: 12px;">מינימום ומקסימום עובדים למשמרת (בוקר / ערב / לילה / סופש)</div>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 12px;">';
+            ['morning', 'evening', 'night', 'weekend'].forEach(key => {
+                const s = state.shiftSettings[key];
+                html += `
+                    <div class="setting-card" style="min-width: 200px; margin-bottom: 0;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">${SHIFT_SETTING_LABELS[key]}</div>
+                        <label style="font-size: 13px;">מינ׳: <input type="number" value="${s.min}" min="0" max="20" onchange="updateShiftSetting('${key}','min',this.value)" style="width: 60px;"></label>
+                        <label style="font-size: 13px; margin-right: 12px;">מקס׳: <input type="number" value="${s.max}" min="0" max="20" onchange="updateShiftSetting('${key}','max',this.value)" style="width: 60px;"></label>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            section.innerHTML = html;
         }
 
         function renderConstraints() {
             const list = document.getElementById('constraintsList');
             if (!state.workers.length) {
-                list.innerHTML = 'הוסף עובדים קודם';
+                list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
                 return;
             }
-            const html = state.workers.map(w => {
+            list.innerHTML = state.workers.map(w => {
                 const c = state.constraints[w.id] || { min: 3, max: 6 };
                 return `
-                    <div style="padding: 16px; background: #f9f7f4; border: 1px solid #e0dcd5; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div class="constraint-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                         <div style="font-weight: 600;">${w.name}</div>
                         <div style="display: flex; gap: 16px;">
-                            <label style="font-size: 13px;">
-                                מינ׳: <input type="number" value="${c.min}" min="1" max="7" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 60px;">
-                            </label>
-                            <label style="font-size: 13px;">
-                                מקס׳: <input type="number" value="${c.max}" min="1" max="7" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 60px;">
-                            </label>
+                            <label style="font-size: 13px;">מינ׳: <input type="number" value="${c.min}" min="1" max="21" onchange="updateConstraint(${w.id}, 'min', this.value)" style="width: 60px;"></label>
+                            <label style="font-size: 13px;">מקס׳: <input type="number" value="${c.max}" min="1" max="21" onchange="updateConstraint(${w.id}, 'max', this.value)" style="width: 60px;"></label>
                         </div>
                     </div>
                 `;
             }).join('');
-            list.innerHTML = html;
         }
 
-        // Generate Schedule
+        // ===== Schedule generation =====
         document.getElementById('generateScheduleBtn').addEventListener('click', () => {
-            const peoplePerShift = parseInt(document.getElementById('peoplePerShift').value) || 3;
-            state.peoplePerShift = peoplePerShift;
-            
-            const schedule = {};
-            const workerShifts = {};
-
-            for (let day = 0; day < 7; day++) {
-                for (let shift of SHIFTS) {
-                    schedule[`${day}-${shift.id}`] = [];
-                }
-            }
-            state.workers.forEach(w => { workerShifts[w.id] = 0; });
-
-            for (let day = 0; day < 7; day++) {
-                for (let shift of SHIFTS) {
-                    const key = `${day}-${shift.id}`;
-                    let candidates = state.workers.filter(w => {
-                        const blocked = state.blocks[w.id]?.[key];
-                        const constraint = state.constraints[w.id] || { min: 3, max: 6 };
-                        return !blocked && (workerShifts[w.id] || 0) < constraint.max;
-                    });
-
-                    candidates.sort((a, b) => (workerShifts[a.id] || 0) - (workerShifts[b.id] || 0));
-
-                    for (let i = 0; i < peoplePerShift && i < candidates.length; i++) {
-                        schedule[key].push(candidates[i].id);
-                        workerShifts[candidates[i].id]++;
-                    }
-                }
-            }
-
-            state.schedule = schedule;
-            renderSchedule();
-            showStatus('✅ סידור נוצר!');
+            generateSchedule();
         });
 
+        function generateSchedule() {
+            const week = ensureWeek(state.currentWeek);
+            const schedule = {};
+            const workerShiftCount = {};
+            const workerNightCount = {};
+            state.workers.forEach(w => { workerShiftCount[w.id] = 0; workerNightCount[w.id] = 0; });
+
+            SLOT_ORDER.forEach((slot, idx) => {
+                const key = `${slot.day}-${slot.shiftId}`;
+                const settings = getSlotSettings(slot.day, slot.shiftId);
+                const prevSlot = idx > 0 ? SLOT_ORDER[idx - 1] : null;
+                const prevAssigned = prevSlot ? (schedule[`${prevSlot.day}-${prevSlot.shiftId}`] || []) : [];
+
+                let candidates = state.workers.filter(w => {
+                    const blocked = week.blocks[w.id]?.[key];
+                    const constraint = state.constraints[w.id] || { min: 3, max: 6 };
+                    const reqs = (state.requirements[w.id] || []).map(r => r.type);
+                    if (blocked) return false;
+                    if (workerShiftCount[w.id] >= constraint.max) return false;
+                    if (prevAssigned.includes(w.id)) return false; // מרווח של משמרת אחת לפחות
+                    if (slot.shiftId === 'night' && reqs.includes('no-night')) return false;
+                    if (slot.shiftId !== 'morning' && reqs.includes('morning-only')) return false;
+                    return true;
+                });
+
+                candidates.sort((a, b) => {
+                    const score = (w) => {
+                        let s = 0;
+                        const reqs = (state.requirements[w.id] || []).map(r => r.type);
+                        if (slot.shiftId === 'night' && reqs.includes('night-mandatory') && workerNightCount[w.id] === 0) s += 10;
+                        if (slot.day === 5 && slot.shiftId === 'evening' && reqs.includes('friday-evening')) s += 10;
+                        if (((slot.day === 6) || (slot.day === 5 && slot.shiftId === 'night')) && reqs.includes('weekend-shift')) s += 10;
+                        return s;
+                    };
+                    const sa = score(a), sb = score(b);
+                    if (sa !== sb) return sb - sa;
+                    return workerShiftCount[a.id] - workerShiftCount[b.id];
+                });
+
+                const target = settings.max;
+                const assigned = candidates.slice(0, target).map(w => w.id);
+                assigned.forEach(id => {
+                    workerShiftCount[id]++;
+                    if (slot.shiftId === 'night') workerNightCount[id]++;
+                });
+                schedule[key] = assigned;
+            });
+
+            week.schedule = schedule;
+            saveState();
+            renderSchedule();
+            showStatus('✅ סידור נוצר עבור ' + getWeekLabel(state.currentWeek));
+        }
+
         function renderSchedule() {
-            if (!state.schedule) return;
+            const week = ensureWeek(state.currentWeek);
             const view = document.getElementById('scheduleView');
-            let html = `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
-            
+            if (!week.schedule) {
+                view.innerHTML = '<div class="empty-state">לא נוצר עדיין סידור לשבוע זה</div>';
+                return;
+            }
+            let html = `<div style="margin-bottom: 12px; font-weight: 600;">${getWeekLabel(state.currentWeek)}</div>`;
+            html += `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
+
             SHIFTS.forEach(shift => {
                 html += `<tr><td style="font-weight: 600; background: #f9f7f4;">${shift.name}</td>`;
                 for (let day = 0; day < 7; day++) {
                     const key = `${day}-${shift.id}`;
-                    const workers = state.schedule[key] || [];
-                    html += `<td>${workers.map(wid => `<div class="worker-badge">${state.workers.find(w => w.id === wid)?.name}</div>`).join('')}</td>`;
+                    const assigned = week.schedule[key] || [];
+                    const settings = getSlotSettings(day, shift.id);
+                    const understaffed = assigned.length < settings.min;
+                    html += `<td style="min-width: 120px; ${understaffed ? 'background: #fcebeb;' : ''}">`;
+                    html += assigned.map(wid => {
+                        const w = state.workers.find(x => x.id === wid);
+                        return `<div class="worker-badge">${w ? w.name : '?'}<span onclick="removeWorkerFromSlot(${day}, '${shift.id}', ${wid})">✕</span></div>`;
+                    }).join('');
+                    if (understaffed) html += `<div style="font-size: 11px; color: #a32d2d;">⚠️ חסר (מינ׳ ${settings.min})</div>`;
+                    const available = state.workers.filter(w => !assigned.includes(w.id));
+                    html += `<select onchange="if (this.value) addWorkerToSlot(${day}, '${shift.id}', parseInt(this.value)); this.value='';" style="margin-top: 4px; width: 100%; font-size: 11px;">
+                        <option value="">+ הוסף עובד</option>
+                        ${available.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                    </select>`;
+                    html += `</td>`;
                 }
                 html += `</tr>`;
             });
-            
             html += `</tbody></table>`;
             view.innerHTML = html;
         }
 
+        window.removeWorkerFromSlot = function(day, shiftId, workerId) {
+            const week = ensureWeek(state.currentWeek);
+            const key = `${day}-${shiftId}`;
+            if (week.schedule && week.schedule[key]) {
+                week.schedule[key] = week.schedule[key].filter(id => id !== workerId);
+                saveState();
+                renderSchedule();
+            }
+        };
+        window.addWorkerToSlot = function(day, shiftId, workerId) {
+            const week = ensureWeek(state.currentWeek);
+            const key = `${day}-${shiftId}`;
+            if (!week.schedule) week.schedule = {};
+            if (!week.schedule[key]) week.schedule[key] = [];
+            if (!week.schedule[key].includes(workerId)) week.schedule[key].push(workerId);
+            saveState();
+            renderSchedule();
+        };
+
+        // ===== Custom tasks =====
+        function renderCustomTasks() {
+            const week = ensureWeek(state.currentWeek);
+            const section = document.getElementById('customTasksSection');
+            let html = '<div style="font-weight: 600; margin-bottom: 12px;">משימות מותאמות אישית לשבוע זה</div>';
+            html += '<div class="form-group">' +
+                '<input type="text" id="newTaskName" placeholder="שם משימה...">' +
+                '<label style="font-size: 13px;">מינ׳ <input type="number" id="newTaskMin" value="1" min="0" style="width: 60px;"></label>' +
+                '<label style="font-size: 13px;">מקס׳ <input type="number" id="newTaskMax" value="1" min="0" style="width: 60px;"></label>' +
+                '<button class="btn-primary" id="addTaskBtn">הוסף משימה</button>' +
+                '</div>';
+            html += '<div id="tasksListInner"></div>';
+            section.innerHTML = html;
+
+            document.getElementById('addTaskBtn').addEventListener('click', addCustomTask);
+
+            const list = document.getElementById('tasksListInner');
+            if (!week.customTasks.length) { list.innerHTML = ''; return; }
+
+            list.innerHTML = week.customTasks.map(t => {
+                const understaffed = t.assigned.length < t.min;
+                const available = state.workers.filter(w => !t.assigned.includes(w.id));
+                return `
+                <div class="task-card" style="${understaffed ? 'border-color: #e24b4a;' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div><strong>${t.name}</strong> <span style="font-size: 12px; color: #5f5e5a;">(מינ׳ ${t.min} - מקס׳ ${t.max})</span></div>
+                        <button class="btn-danger" onclick="removeCustomTask(${t.id})">מחק משימה</button>
+                    </div>
+                    <div>${t.assigned.map(wid => {
+                        const w = state.workers.find(x => x.id === wid);
+                        return `<div class="worker-badge">${w ? w.name : '?'}<span onclick="removeWorkerFromTask(${t.id}, ${wid})">✕</span></div>`;
+                    }).join('')}</div>
+                    ${understaffed ? `<div style="font-size: 11px; color: #a32d2d; margin-top: 4px;">⚠️ חסר (מינ׳ ${t.min})</div>` : ''}
+                    <select onchange="if (this.value) addWorkerToTask(${t.id}, parseInt(this.value)); this.value='';" style="margin-top: 6px;">
+                        <option value="">+ הוסף עובד</option>
+                        ${available.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                    </select>
+                </div>
+            `}).join('');
+        }
+
+        function addCustomTask() {
+            const name = document.getElementById('newTaskName').value.trim();
+            if (!name) return;
+            const min = parseInt(document.getElementById('newTaskMin').value) || 0;
+            const max = parseInt(document.getElementById('newTaskMax').value) || 0;
+            const week = ensureWeek(state.currentWeek);
+            week.customTasks.push({ id: Date.now(), name, min, max, assigned: [] });
+            saveState();
+            renderCustomTasks();
+            showStatus('✅ משימה נוספה');
+        }
+        window.removeCustomTask = function(id) {
+            const week = ensureWeek(state.currentWeek);
+            week.customTasks = week.customTasks.filter(t => t.id !== id);
+            saveState();
+            renderCustomTasks();
+        };
+        window.addWorkerToTask = function(taskId, workerId) {
+            const week = ensureWeek(state.currentWeek);
+            const task = week.customTasks.find(t => t.id === taskId);
+            if (task && !task.assigned.includes(workerId)) {
+                task.assigned.push(workerId);
+                saveState();
+                renderCustomTasks();
+            }
+        };
+        window.removeWorkerFromTask = function(taskId, workerId) {
+            const week = ensureWeek(state.currentWeek);
+            const task = week.customTasks.find(t => t.id === taskId);
+            if (task) {
+                task.assigned = task.assigned.filter(id => id !== workerId);
+                saveState();
+                renderCustomTasks();
+            }
+        };
+
         // Initialize on page load
-        console.log('🚀 Script loaded');
         loadState();
         renderAll();
         showStatus('✅ אפליקציה טוענת');
