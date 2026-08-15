@@ -78,6 +78,35 @@
 
         <!-- Blocks Tab -->
         <div class="tab-content" data-tab="blocks">
+            <div class="task-card">
+                <div style="font-weight: 600; margin-bottom: 8px;">📥 זיהוי חסימות מתוך צילום מסך</div>
+                <div style="font-size: 12px; color: #5f5e5a; margin-bottom: 10px;">
+                    1) בחר עובד ⟵ 2) העלה צילום מסך של טבלת הזמינות ⟵ 3) לחץ על מרכז האייקון "בוקר, יום א׳" ואז על מרכז האייקון "לילה, יום ש׳" ⟵ 4) האפליקציה תדגום את שאר התאים לפי צבע (ירוק=פנוי, אדום=חסום) ⟵ 5) תקן ידנית אם צריך ולחץ החל.
+                </div>
+                <div class="form-group">
+                    <select id="importWorkerSelect" style="flex: 1; min-width: 180px;"></select>
+                    <input type="file" id="importImageFile" accept="image/*">
+                </div>
+                <div id="importImageWrap" style="position: relative; display: none; margin-bottom: 12px; max-width: 100%;">
+                    <img id="importImagePreview" style="max-width: 100%; display: block; cursor: crosshair;">
+                    <div id="importClickMarkers"></div>
+                </div>
+                <div id="importStep" style="font-size: 13px; font-weight: 600; margin-bottom: 10px;"></div>
+                <div id="importDetectedGrid" style="margin-bottom: 10px;"></div>
+                <button class="btn-primary" id="applyImportBtn" style="display: none;">החל חסימות על העובד הנבחר</button>
+            </div>
+
+            <details style="margin-bottom: 20px;">
+                <summary style="cursor: pointer; font-weight: 600; padding: 8px 0;">ייבוא חלופי: הדבקת קוד</summary>
+                <div class="task-card" style="margin-top: 8px;">
+                    <div class="form-group">
+                        <select id="importWorkerSelect2" style="flex: 1; min-width: 180px;"></select>
+                    </div>
+                    <textarea id="importBlocksText" placeholder='הדבק כאן קוד, למשל: [{"day":0,"shift":"morning"},{"day":2,"shift":"night"}]' style="width: 100%; min-height: 60px; padding: 10px 12px; border: 1px solid #e0dcd5; border-radius: 4px; font-size: 13px; font-family: monospace; margin-bottom: 10px;"></textarea>
+                    <button class="btn-primary" id="importBlocksBtn">ייבא חסימות לעובד הנבחר</button>
+                </div>
+            </details>
+
             <div id="blocksList"></div>
         </div>
 
@@ -356,6 +385,173 @@
             renderBlocks();
         };
 
+        // Applies a list of {day, shift} blocked entries to a worker, replacing that worker's week
+        function applyBlockList(workerId, items) {
+            const week = ensureWeek(state.currentWeek);
+            week.blocks[workerId] = {};
+            items.forEach(it => { week.blocks[workerId][`${it.day}-${it.shift}`] = true; });
+            saveState();
+            renderBlocks();
+        }
+
+        // Import blocks from pasted JSON (e.g. read by Claude from a screenshot)
+        document.getElementById('importBlocksBtn').addEventListener('click', () => {
+            const workerId = parseInt(document.getElementById('importWorkerSelect2').value);
+            if (!workerId) { showStatus('❌ בחר עובד קודם', true); return; }
+            const raw = document.getElementById('importBlocksText').value.trim();
+            if (!raw) { showStatus('❌ הדבק קוד ייבוא קודם', true); return; }
+
+            let items;
+            try {
+                items = JSON.parse(raw);
+                if (!Array.isArray(items)) throw new Error('not an array');
+            } catch (e) {
+                showStatus('❌ הקוד שהודבק אינו תקין (צריך להיות מערך JSON)', true);
+                return;
+            }
+
+            const validShiftIds = SHIFTS.map(s => s.id);
+            const invalid = items.some(it =>
+                typeof it.day !== 'number' || it.day < 0 || it.day > 6 || !validShiftIds.includes(it.shift)
+            );
+            if (invalid) {
+                showStatus('❌ יש ערכים לא תקינים בקוד (day צריך 0-6, shift צריך morning/evening/night)', true);
+                return;
+            }
+
+            applyBlockList(workerId, items);
+            document.getElementById('importBlocksText').value = '';
+            const worker = state.workers.find(w => w.id === workerId);
+            showStatus(`✅ ${items.length} חסימות יובאו עבור ${worker ? worker.name : ''}`);
+        });
+
+        // ===== זיהוי חסימות מתוך צילום מסך (דגימת צבע לפי 2 נקודות עוגן) =====
+        let importImg = null;          // <img> element currently loaded
+        let importClicks = [];         // עד 2 נקודות: [{x,y}] בקואורדינטות תמונה מלאה (natural)
+        let importDetected = null;     // מערך 21 תאים אחרי זיהוי: [{day, shiftId, status}]
+
+        document.getElementById('importImageFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = document.getElementById('importImagePreview');
+                img.src = ev.target.result;
+                img.onload = () => {
+                    importImg = img;
+                    importClicks = [];
+                    importDetected = null;
+                    document.getElementById('importImageWrap').style.display = 'block';
+                    document.getElementById('importDetectedGrid').innerHTML = '';
+                    document.getElementById('applyImportBtn').style.display = 'none';
+                    document.getElementById('importClickMarkers').innerHTML = '';
+                    document.getElementById('importStep').textContent = 'שלב 1: לחץ על מרכז האייקון של "בוקר, יום א׳ (16/8 בדוגמה) — העמודה הימנית ביותר, שורה עליונה"';
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('importImagePreview').addEventListener('click', (e) => {
+            if (!importImg || importClicks.length >= 2) return;
+            const rect = e.target.getBoundingClientRect();
+            const scaleX = importImg.naturalWidth / rect.width;
+            const scaleY = importImg.naturalHeight / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            importClicks.push({ x, y });
+
+            const marker = document.createElement('div');
+            marker.style.cssText = `position:absolute; width:14px; height:14px; border-radius:50%; background:#639922; border:2px solid white; transform:translate(-50%,-50%); left:${(e.clientX - rect.left)}px; top:${(e.clientY - rect.top)}px;`;
+            document.getElementById('importClickMarkers').style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;';
+            document.getElementById('importClickMarkers').appendChild(marker);
+
+            if (importClicks.length === 1) {
+                document.getElementById('importStep').textContent = 'שלב 2: עכשיו לחץ על מרכז האייקון של "לילה, יום ש׳ (22/8 בדוגמה) — העמודה השמאלית ביותר, שורה תחתונה"';
+            } else {
+                document.getElementById('importStep').textContent = 'זוהה! בדוק את התוצאה למטה ותקן תאים שגויים בלחיצה עליהם, ואז לחץ "החל".';
+                detectBlocksFromImage();
+            }
+        });
+
+        function samplePixelColor(img, x, y) {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+            return { r: data[0], g: data[1], b: data[2] };
+        }
+
+        function classifyColor(c) {
+            if (c.r > c.g + 30 && c.r > 110) return 'blocked';
+            if (c.g > c.r + 15 && c.g > 90) return 'available';
+            return 'unknown';
+        }
+
+        function detectBlocksFromImage() {
+            const [p1, p2] = importClicks; // p1 = יום0/משמרת0 (בוקר,א׳), p2 = יום6/משמרת2 (לילה,ש׳)
+            const results = [];
+            for (let day = 0; day < 7; day++) {
+                for (let shiftIdx = 0; shiftIdx < 3; shiftIdx++) {
+                    const tCol = day / 6;
+                    const tRow = shiftIdx / 2;
+                    const x = p1.x + tCol * (p2.x - p1.x);
+                    const y = p1.y + tRow * (p2.y - p1.y);
+                    const color = samplePixelColor(importImg, x, y);
+                    const status = classifyColor(color);
+                    results.push({ day, shiftId: SHIFTS[shiftIdx].id, status });
+                }
+            }
+            importDetected = results;
+            renderDetectedGrid();
+            document.getElementById('applyImportBtn').style.display = 'inline-block';
+        }
+
+        function renderDetectedGrid() {
+            const wrap = document.getElementById('importDetectedGrid');
+            let html = `<table><thead><tr><th>משמרת</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
+            SHIFTS.forEach(shift => {
+                html += `<tr><td style="font-weight:600; background:#f9f7f4;">${shift.name}</td>`;
+                for (let day = 0; day < 7; day++) {
+                    const cell = importDetected.find(r => r.day === day && r.shiftId === shift.id);
+                    const colors = { blocked: '#e24b4a', available: '#639922', unknown: '#c9c4ba' };
+                    const labels = { blocked: '🚫 חסום', available: '✅ פנוי', unknown: '❓ לא זוהה' };
+                    html += `<td>
+                        <button style="width:100%; padding:6px; border:none; border-radius:3px; background:${colors[cell.status]}; color:white; font-size:11px; cursor:pointer;" onclick="toggleDetectedCell(${day}, '${shift.id}')">
+                            ${labels[cell.status]}
+                        </button>
+                    </td>`;
+                }
+                html += `</tr>`;
+            });
+            html += `</tbody></table>`;
+            wrap.innerHTML = html;
+        }
+
+        window.toggleDetectedCell = function(day, shiftId) {
+            const cell = importDetected.find(r => r.day === day && r.shiftId === shiftId);
+            const order = ['blocked', 'available', 'unknown'];
+            cell.status = order[(order.indexOf(cell.status) + 1) % order.length];
+            renderDetectedGrid();
+        };
+
+        document.getElementById('applyImportBtn').addEventListener('click', () => {
+            const workerId = parseInt(document.getElementById('importWorkerSelect').value);
+            if (!workerId) { showStatus('❌ בחר עובד קודם', true); return; }
+            if (!importDetected) return;
+            const items = importDetected.filter(r => r.status === 'blocked').map(r => ({ day: r.day, shift: r.shiftId }));
+            applyBlockList(workerId, items);
+            const worker = state.workers.find(w => w.id === workerId);
+            showStatus(`✅ ${items.length} חסימות הוחלו על ${worker ? worker.name : ''}`);
+            document.getElementById('importImageWrap').style.display = 'none';
+            document.getElementById('importDetectedGrid').innerHTML = '';
+            document.getElementById('importStep').textContent = '';
+            document.getElementById('applyImportBtn').style.display = 'none';
+            document.getElementById('importImageFile').value = '';
+            importImg = null; importClicks = []; importDetected = null;
+        });
+
         // Update Constraint
         window.updateConstraint = function(id, field, value) {
             if (!state.constraints[id]) state.constraints[id] = { min: 3, max: 6 };
@@ -422,11 +618,21 @@
         function renderBlocks() {
             const week = ensureWeek(state.currentWeek);
             const list = document.getElementById('blocksList');
+            const importSelect = document.getElementById('importWorkerSelect');
+            const importSelect2 = document.getElementById('importWorkerSelect2');
 
             if (!state.workers.length) {
                 list.innerHTML = '<div class="empty-state">הוסף עובדים קודם</div>';
+                importSelect.innerHTML = '<option value="">אין עובדים</option>';
+                importSelect2.innerHTML = '<option value="">אין עובדים</option>';
                 return;
             }
+
+            [importSelect, importSelect2].forEach(sel => {
+                const currentImportSelection = sel.value;
+                sel.innerHTML = '<option value="">בחר עובד...</option>' +
+                    state.workers.map(w => `<option value="${w.id}" ${currentImportSelection == w.id ? 'selected' : ''}>${w.name}</option>`).join('');
+            });
 
             let html = `<div style="margin-bottom: 16px; font-weight: 600;">חסימות עבור ${getWeekLabel(state.currentWeek)}</div>`;
 
